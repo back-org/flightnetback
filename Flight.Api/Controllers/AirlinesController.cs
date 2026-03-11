@@ -1,13 +1,8 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System;
 using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
 
 namespace Flight.Api.Controllers;
 

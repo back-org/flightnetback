@@ -1,4 +1,3 @@
-using System;
 using System.Text;
 using Flight.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;

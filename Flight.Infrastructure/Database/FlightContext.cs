@@ -1,4 +1,5 @@
 using Flight.Domain.Entities;
+using Flight.Infrastructure.AuditTrail;
 using Flight.Infrastructure.EntityConfigurations;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -57,6 +58,11 @@ public class FlightContext : IdentityDbContext
     /// Table des villes.
     /// </summary>
     public DbSet<City> City { get; set; } = null!;
+
+    /// <summary>
+    /// Table des journaux d'audit.
+    /// </summary>
+    public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
     /// <summary>
     /// Configure le modèle EF Core.

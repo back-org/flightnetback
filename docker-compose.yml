@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  # ─── Base de données MySQL ────────────────────────────────────
+  db:
+    image: mysql:8.4
+    container_name: flightnet-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-flightnet}
+      MYSQL_USER: ${MYSQL_USER:-flightuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-flightpass}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── API FlightNet ────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flightnet-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: >
+        Server=db;Port=3306;Database=${MYSQL_DATABASE:-flightnet};
+        Uid=${MYSQL_USER:-flightuser};Pwd=${MYSQL_PASSWORD:-flightpass};
+      jwtTokenConfig__Secret: ${JWT_SECRET:-superSecretKey@345FlightNet2024!}
+      jwtTokenConfig__Issuer: FlightNet
+      jwtTokenConfig__Audience: FlightNetClient
+      jwtTokenConfig__AccessTokenExpiration: 20
+      jwtTokenConfig__RefreshTokenExpiration: 60
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ─── Adminer (gestion DB en dev) ─────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: flightnet-adminer
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8888:8080"
+    profiles:
+      - dev
+
+volumes:
+  mysql_data:
+    driver: local
