@@ -15,7 +15,7 @@ namespace Flight.Api.Controllers;
 [Route("api/[controller]")]
 public class FlightsController : ParentController
 {
-    private readonly IGenericRepository<Flight> _flightRepository;
+    private readonly IGenericRepository<Domain.Entities.Flight> _flightRepository;
     private readonly ILogger<FlightsController> _logger;
 
     /// <summary>
@@ -120,7 +120,7 @@ public class FlightsController : ParentController
                 HttpContext.TraceIdentifier));
         }
 
-        var entity = new Flight(dto);
+        var entity = new Domain.Entities.Flight(dto);
 
         await _flightRepository.AddAsync(entity);
 
