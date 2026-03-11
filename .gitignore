@@ -4,6 +4,9 @@ obj/
 *.user
 *.suo
 .vs/
+.dll
+.exe
+.vsidx
 
 ## ASP.NET
 appsettings.*.json
@@ -27,3 +30,4 @@ Thumbs.db
 ## IDE
 .idea/
 *.swp
+.vscode/

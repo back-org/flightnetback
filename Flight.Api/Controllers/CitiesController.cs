@@ -22,7 +22,7 @@ public class CitiesController : ParentController
     /// Initialise une nouvelle instance du <see cref="CitysController"/>.
     /// </summary>
     /// <param name="manager">Le gestionnaire de dépôts injecté par DI.</param>
-    public CitysController(IRepositoryManager manager) : base(manager)
+    public CitiesController(IRepositoryManager manager) : base(manager)
     {
         _repository = Manager.City;
     }

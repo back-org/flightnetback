@@ -22,7 +22,7 @@ public class CountriesController : ParentController
     /// Initialise une nouvelle instance du <see cref="CountrysController"/>.
     /// </summary>
     /// <param name="manager">Le gestionnaire de dépôts injecté par DI.</param>
-    public CountrysController(IRepositoryManager manager) : base(manager)
+    public CountriesController(IRepositoryManager manager) : base(manager)
     {
         _repository = Manager.Country;
     }

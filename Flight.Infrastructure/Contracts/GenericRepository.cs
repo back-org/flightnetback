@@ -15,8 +15,8 @@ namespace Flight.Infrastructure.Contracts;
 /// <summary>
 ///     The generic repository.
 /// </summary>
-public abstract class GenericRepository<T> : Notifiable<Notification>, IGenericRepository<T>,
-    INotificationRepositoryy<T> where T : class
+public abstract class GenericRepository<T> : Notifiable<Notification>, IGenericRepository<T>
+     where T : class
 {
     /// <summary>
     ///     Initializes a new instance of the <see cref="GenericRepository" /> class.
