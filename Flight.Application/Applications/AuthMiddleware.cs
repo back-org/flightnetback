@@ -1,76 +1,67 @@
-﻿using System;
-using Flight.Infrastructure.Database;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.Tokens;
+using Flight.Infrastructure.Database;
 
-namespace Flight.Application.Applications
+namespace Flight.Application.Applications;
+
+/// <summary>
+/// Middleware d'extension pour la configuration d'ASP.NET Core Identity.
+/// Utilisé si l'on souhaite activer l'authentification basée sur Identity (cookies + comptes ASP.NET).
+/// </summary>
+/// <remarks>
+/// <b>Note :</b> Ce middleware est optionnel dans cette architecture.
+/// L'authentification principale est gérée via JWT dans <see cref="JwtMiddleware"/>.
+/// Activez Identity uniquement si vous avez besoin de gestion de comptes utilisateurs via la base de données.
+/// </remarks>
+public static class AuthMiddleware
 {
-    public static class IdentityMiddleware
+    /// <summary>
+    /// Configure ASP.NET Core Identity avec les règles de mot de passe, verrouillage et utilisateur.
+    /// Nécessite que <see cref="FlightContext"/> soit déjà enregistré dans le conteneur DI.
+    /// </summary>
+    /// <param name="services">Le conteneur de services DI.</param>
+    public static void AddIdentityService(this IServiceCollection services)
     {
-        public static void AddJwtService(this IServiceCollection services)
+        services.AddDefaultIdentity<IdentityUser>(options =>
+            options.SignIn.RequireConfirmedAccount = true)
+            .AddEntityFrameworkStores<FlightContext>();
+
+        services.Configure<IdentityOptions>(options =>
         {
-            services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(o =>
-{
-    o.TokenValidationParameters = new TokenValidationParameters
-    {
-      /*  ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey
-            (Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])), */
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = false,
-        ValidateIssuerSigningKey = true
-    };
-});
-        }
+            // Règles de mot de passe
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireNonAlphanumeric = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequiredLength = 8;
+            options.Password.RequiredUniqueChars = 1;
 
-        public static void AddCookie(this IServiceCollection services){
- services.ConfigureApplicationCookie(options =>
-            {
-                // Cookie settings
-                options.Cookie.HttpOnly = true;
-                options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+            // Règles de verrouillage de compte
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.AllowedForNewUsers = true;
 
-                options.LoginPath = "/Identity/Account/Login";
-                options.AccessDeniedPath = "/Identity/Account/AccessDenied";
-                options.SlidingExpiration = true;
-            });
-        }
-        public static void AddIdentity(this IServiceCollection services)
-        {
-            services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddEntityFrameworkStores<FlightContext>();
-
-            services.Configure<IdentityOptions>(options =>
-            {
-                // Password settings.
-                options.Password.RequireDigit = true;
-                options.Password.RequireLowercase = true;
-                options.Password.RequireNonAlphanumeric = true;
-                options.Password.RequireUppercase = true;
-                options.Password.RequiredLength = 6;
-                options.Password.RequiredUniqueChars = 1;
-
-                // Lockout settings.
-                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-                options.Lockout.MaxFailedAccessAttempts = 5;
-                options.Lockout.AllowedForNewUsers = true;
-
-                // User settings.
-                options.User.AllowedUserNameCharacters =
+            // Règles sur le nom d'utilisateur
+            options.User.AllowedUserNameCharacters =
                 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
-                options.User.RequireUniqueEmail = false;
-            });
+            options.User.RequireUniqueEmail = true;
+        });
+    }
 
-           
-        }
+    /// <summary>
+    /// Configure le cookie d'authentification Identity (session, chemins de redirection, expiration).
+    /// </summary>
+    /// <param name="services">Le conteneur de services DI.</param>
+    public static void AddIdentityCookie(this IServiceCollection services)
+    {
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.Cookie.HttpOnly = true;
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+            options.LoginPath = "/Identity/Account/Login";
+            options.AccessDeniedPath = "/Identity/Account/AccessDenied";
+            options.SlidingExpiration = true;
+        });
     }
 }

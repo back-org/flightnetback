@@ -1,123 +1,139 @@
-﻿using Flight.Domain.Entities;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System;
+using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Interfaces;
-using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using System.Collections.Generic;
 
 namespace Flight.Api.Controllers;
 
 /// <summary>
-///     The city controller.
+/// Contrôleur gérant les opérations CRUD sur les entités <see cref="City"/>.
 /// </summary>
 public class CitiesController : ParentController
 {
-    private readonly IGenericRepository<City> _cityRepository;
+    private readonly IGenericRepository<City> _repository;
 
-    public CitiesController(IRepositoryManager manager) : base(manager)
+    /// <summary>
+    /// Initialise une nouvelle instance du <see cref="CitysController"/>.
+    /// </summary>
+    /// <param name="manager">Le gestionnaire de dépôts injecté par DI.</param>
+    public CitysController(IRepositoryManager manager) : base(manager)
     {
-        _cityRepository = Manager.City;
+        _repository = Manager.City;
     }
 
     /// <summary>
-    /// Gets all the cities.
+    /// Retourne la liste complète des <see cref="City"/> enregistrés.
     /// </summary>
-    /// <returns>List of all real cities.</returns>
-    [EndpointDescription("Display list of city.")]
-    [ProducesResponseType(typeof(IEnumerable<City>), 200)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), 404,
-        "application/problem+json")]
-    [EndpointName("cities")]
-    [EndpointSummary("All cities")]
+    /// <returns>Une liste de <see cref="City"/>.</returns>
+    [ProducesResponseType(typeof(IEnumerable<City>), StatusCodes.Status200OK)]
+    [EndpointName("GetAllCities")]
+    [EndpointSummary("Tous les citys")]
     public override async Task<IActionResult> GetAll()
     {
-        var cities = await _cityRepository.AllAsync();
-        return Ok(cities);
+        var items = await _repository.AllAsync();
+        return Ok(items);
     }
 
     /// <summary>
-    /// Retrieve a specific city's details by ID.
+    /// Récupère un(e) <see cref="City"/> par son identifiant.
     /// </summary>
-    /// <param name="id">The ID of the city to retrieve.</param>
-    /// <returns>The details of the requested city.</returns>
+    /// <param name="id">L'identifiant de la ressource.</param>
+    /// <returns>La ressource correspondante, ou 404 si non trouvée.</returns>
     [HttpGet("{id:int}")]
     [EndpointName("GetCityById")]
-    [EndpointSummary("Get a city by id")]
-    [EndpointDescription("Fetch a city by id or returns 404 if no city with the ID exists.")]
-    [ProducesResponseType(typeof(City), 200)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), 404,
-        "application/problem+json")]
+    [EndpointSummary("City par ID")]
+    [ProducesResponseType(typeof(City), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<City>> Get(int id)
     {
-        var city = await _cityRepository.GetByIdAsync(id);
-        if (city == null) return NotFound();
-        return Ok($"City found: {city}");
+        var item = await _repository.GetByIdAsync(id);
+        if (item == null) return NotFound(new { message = $"City avec l'ID {id} non trouvé(e)." });
+        return Ok(item);
     }
 
     /// <summary>
-    /// Create a new city.
+    /// Crée un(e) nouveau/nouvelle <see cref="City"/>.
     /// </summary>
-    /// <param name="city">The city's information for creation.</param>
-    /// <returns>A confirmation of the city's successful creation.</returns>
+    /// <param name="dto">Les données de la ressource à créer.</param>
+    /// <returns>La ressource créée avec son nouvel identifiant.</returns>
     [HttpPost]
-    [EndpointSummary("Create a city")]
-    [EndpointDescription("Create a city or returns bad request.")]
-    [ProducesResponseType(typeof(City), 200)]
-    public async Task<ActionResult<City>> Create(CityDto city)
+    [Authorize(Roles = "Admin,BasicUser")]
+    [EndpointSummary("Créer un(e) city")]
+    [ProducesResponseType(typeof(City), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<City>> Create([FromBody] CityDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
-            await _cityRepository.AddAsync(new City(city));
+            var entity = new City(dto);
+            await _repository.AddAsync(entity);
+            return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity);
         }
         catch (Exception e)
         {
-            return BadRequest(e.InnerException);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok("City created successfully");
     }
 
+    /// <summary>
+    /// Met à jour un(e) <see cref="City"/> existant(e).
+    /// </summary>
+    /// <param name="dto">Les nouvelles données (doit inclure l'ID).</param>
+    /// <returns>La ressource mise à jour, ou 400/404 en cas d'erreur.</returns>
     [HttpPut]
-    [EndpointSummary("Update a city")]
-    [EndpointDescription("Update city or returns bad request.")]
-    public async Task<ActionResult<City>> Put([FromBody] CityDto city)
+    [Authorize(Roles = "Admin,BasicUser")]
+    [EndpointSummary("Mettre à jour un(e) city")]
+    [ProducesResponseType(typeof(City), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<City>> Put([FromBody] CityDto dto)
     {
-        City item;
+        var item = await _repository.GetByIdAsync(dto.Id);
+        if (item is null) return NotFound(new { message = $"City avec l'ID {dto.Id} non trouvé(e)." });
+
         try
         {
-            item = await _cityRepository.GetByIdAsync(city.Id);
-            item.Copy(city);
-            await _cityRepository.Update(item);
+            item.Copy(dto);
+            await _repository.Update(item);
+            return Ok(item);
         }
         catch (Exception e)
         {
-            return BadRequest(e);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"City updated successfully: {item}");
     }
 
+    /// <summary>
+    /// Supprime un(e) <see cref="City"/> par son identifiant.
+    /// </summary>
+    /// <param name="id">L'identifiant de la ressource à supprimer.</param>
+    /// <returns>204 No Content si supprimé(e), 404 si non trouvé(e).</returns>
     [HttpDelete("{id:int}")]
-    [EndpointSummary("Delete a city")]
-    [EndpointDescription("delete city or returns bad request.")]
-    public async Task<ActionResult<City>> Delete(int id)
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Supprimer un(e) city")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Delete(int id)
     {
-        var item = await _cityRepository.GetByIdAsync(id);
-        if (item is null) return NotFound();
+        var item = await _repository.GetByIdAsync(id);
+        if (item is null) return NotFound(new { message = $"City avec l'ID {id} non trouvé(e)." });
+
         try
         {
-            await _cityRepository.DeleteAsync(id);
+            await _repository.DeleteAsync(id);
+            return NoContent();
         }
         catch (Exception e)
         {
-            return BadRequest(e);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"City deleted successfully: {item}");
     }
 }

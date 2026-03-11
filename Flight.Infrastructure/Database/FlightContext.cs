@@ -1,4 +1,4 @@
-﻿using Flight.Domain.Entities;
+using Flight.Domain.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Flight.Infrastructure.EntityConfigurations;
@@ -6,67 +6,69 @@ using Flight.Infrastructure.EntityConfigurations;
 namespace Flight.Infrastructure.Database;
 
 /// <summary>
-///     The flight context.
+/// Contexte Entity Framework Core de l'application FlightNet.
+/// Hérite de <see cref="IdentityDbContext"/> pour intégrer ASP.NET Core Identity.
+/// Déclare tous les <see cref="DbSet{TEntity}"/> utilisés dans l'application.
 /// </summary>
 public class FlightContext : IdentityDbContext
 {
     /// <summary>
-    ///     Gets or sets the airline.
+    /// Table des compagnies aériennes.
     /// </summary>
     public DbSet<Airline> Airline { get; set; }
 
     /// <summary>
-    ///     Gets or sets the airport.
+    /// Table des aéroports.
     /// </summary>
     public DbSet<Airport> Airport { get; set; }
 
     /// <summary>
-    ///     Gets or sets the flight.
+    /// Table des vols.
     /// </summary>
     public DbSet<Domain.Entities.Flight> Flight { get; set; }
 
     /// <summary>
-    ///     Gets or sets the passenger.
+    /// Table des passagers.
     /// </summary>
     public DbSet<Passenger> Passenger { get; set; }
 
     /// <summary>
-    ///     Gets or sets the reservation.
+    /// Table des réservations.
     /// </summary>
     public DbSet<Booking> Booking { get; init; }
 
     /// <summary>
-    ///     Gets or sets the vehicle.
+    /// Table des véhicules de transport.
     /// </summary>
     public DbSet<Vehicle> Vehicle { get; set; }
 
     /// <summary>
-    ///     Gets or sets the country.
+    /// Table des pays.
     /// </summary>
     public DbSet<Country> Country { get; set; }
 
     /// <summary>
-    ///     Gets or sets the city.
+    /// Table des villes.
     /// </summary>
     public DbSet<City> City { get; set; }
 
     /// <summary>
-    ///     Ons the configuring.
+    /// Initialise une nouvelle instance du <see cref="FlightContext"/>.
+    /// Les options de connexion sont injectées par l'infrastructure DI (voir <c>DatabaseMiddleware</c>).
     /// </summary>
-    /// <param name="optionsBuilder">The options builder.</param>
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        var connString = "server=127.0.0.1;port=3306;user=root;password=Ma$terkey1;database=flights";
-        optionsBuilder.UseMySql(connString, ServerVersion.AutoDetect(connString));
-    }
-
+    /// <param name="options">Options EF Core (chaîne de connexion, provider, etc.).</param>
     public FlightContext(DbContextOptions options) : base(options)
     {
-        /* Drop it when lauch EF commands. */
     }
 
+    /// <summary>
+    /// Configure le modèle EF Core en appliquant les configurations Fluent API définies dans
+    /// <c>Flight.Infrastructure.EntityConfigurations</c>.
+    /// </summary>
+    /// <param name="modelBuilder">Le constructeur de modèle EF Core.</param>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfiguration(new CountryConfiguration());
     }
 }

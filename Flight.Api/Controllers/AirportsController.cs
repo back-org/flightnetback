@@ -1,121 +1,145 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
 using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace Flight.Api.Controllers;
 
+/// <summary>
+/// Contrôleur gérant les opérations CRUD sur les aéroports (<see cref="Airport"/>).
+/// Accès en lecture libre, opérations d'écriture réservées aux administrateurs.
+/// </summary>
 public class AirportsController : ParentController
 {
-    private readonly IGenericRepository<Airport> _airlineRepository;
+    private readonly IGenericRepository<Airport> _airportRepository;
 
+    /// <summary>
+    /// Initialise une nouvelle instance du <see cref="AirportsController"/>.
+    /// </summary>
+    /// <param name="manager">Le gestionnaire de dépôts injecté par DI.</param>
     public AirportsController(IRepositoryManager manager) : base(manager)
     {
-        _airlineRepository = Manager.Airport;
+        _airportRepository = Manager.Airport;
     }
 
     /// <summary>
-    /// Gets all the airports.
+    /// Retourne la liste complète de tous les aéroports enregistrés.
     /// </summary>
-    /// <returns>List of all real airports.</returns>
-    [EndpointDescription("Display list of airports.")]
-    [ProducesResponseType(typeof(IEnumerable<Airport>), 200)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), 404,
-        "application/problem+json")]
-    [EndpointName("airports")]
-    [EndpointSummary("All airports")]
+    /// <returns>Une liste de <see cref="Airport"/>.</returns>
+    [EndpointDescription("Retourne la liste de tous les aéroports.")]
+    [ProducesResponseType(typeof(IEnumerable<Airport>), StatusCodes.Status200OK)]
+    [EndpointName("GetAllAirports")]
+    [EndpointSummary("Tous les aéroports")]
     public override async Task<IActionResult> GetAll()
     {
-        var airports = await _airlineRepository.AllAsync();
-
+        var airports = await _airportRepository.AllAsync();
         return Ok(airports);
     }
 
     /// <summary>
-    /// Retrieve a specific airline's details by ID.
+    /// Récupère un aéroport par son identifiant.
     /// </summary>
-    /// <param name="id">The ID of the airline to retrieve.</param>
-    /// <returns>The details of the requested airline.</returns>
+    /// <param name="id">L'identifiant de l'aéroport.</param>
+    /// <returns>L'aéroport correspondant, ou 404 si non trouvé.</returns>
     [HttpGet("{id:int}")]
     [EndpointName("GetAirportById")]
-    [EndpointSummary("Get a airline by id")]
-    [EndpointDescription("Fetch a airline by id or returns 404 if no airline with the ID exist.")]
-    [ProducesResponseType(typeof(Airport), 200)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), 404,
-        "application/problem+json")]
+    [EndpointSummary("Aéroport par ID")]
+    [EndpointDescription("Retourne un aéroport par son ID, ou 404 s'il n'existe pas.")]
+    [ProducesResponseType(typeof(Airport), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<Airport>> Get(int id)
     {
-        var airline = await _airlineRepository.GetByIdAsync(id);
-        if (airline == null) return NotFound();
-        return Ok($"Airport found: {airline}");
+        var airport = await _airportRepository.GetByIdAsync(id);
+        if (airport == null) return NotFound(new { message = $"Aéroport avec l'ID {id} non trouvé." });
+        return Ok(airport);
     }
 
     /// <summary>
-    /// Create a new airline.
+    /// Crée un nouvel aéroport.
     /// </summary>
-    /// <param name="airline">The airline information for creation.</param>
-    /// <returns>A confirmation of the airline successful creation.</returns>
+    /// <param name="airport">Les données de l'aéroport à créer.</param>
+    /// <returns>L'aéroport créé avec son nouvel identifiant.</returns>
     [HttpPost]
-    [EndpointSummary("Create a airline")]
-    [EndpointDescription("Create a airline or returns bad request.")]
-    [ProducesResponseType(typeof(Airport), 200)]
-    public async Task<ActionResult<Airport>> Create(AirportDto airline)
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Créer un aéroport")]
+    [EndpointDescription("Crée un nouvel aéroport. Réservé aux administrateurs.")]
+    [ProducesResponseType(typeof(Airport), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Airport>> Create([FromBody] AirportDto airport)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
-            await _airlineRepository.AddAsync(new Airport(airline));
+            var entity = new Airport(airport);
+            await _airportRepository.AddAsync(entity);
+            return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity);
         }
         catch (Exception e)
         {
-            return BadRequest(e.InnerException);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Airport created successfully: {airline}");
     }
 
+    /// <summary>
+    /// Met à jour un aéroport existant.
+    /// </summary>
+    /// <param name="airport">Les nouvelles données de l'aéroport (doit inclure l'ID).</param>
+    /// <returns>L'aéroport mis à jour, ou 400/404 en cas d'erreur.</returns>
     [HttpPut]
-    [EndpointSummary("Update a airline")]
-    [EndpointDescription("Update airline or returns bad request.")]
-    public async Task<ActionResult<Airport>> Put([FromBody] AirportDto airline)
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Mettre à jour un aéroport")]
+    [EndpointDescription("Met à jour un aéroport existant. Réservé aux administrateurs.")]
+    [ProducesResponseType(typeof(Airport), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<Airport>> Put([FromBody] AirportDto airport)
     {
-        Airport item;
+        var item = await _airportRepository.GetByIdAsync(airport.Id);
+        if (item is null) return NotFound(new { message = $"Aéroport avec l'ID {airport.Id} non trouvé." });
+
         try
         {
-            item = await _airlineRepository.GetByIdAsync(airline.Id);
-            item.Copy(airline);
-            await _airlineRepository.Update(item);
+            item.Copy(airport);
+            await _airportRepository.Update(item);
+            return Ok(item);
         }
         catch (Exception e)
         {
-            return BadRequest(e);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Airport updated successfully: {item}");
     }
 
+    /// <summary>
+    /// Supprime un aéroport par son identifiant.
+    /// </summary>
+    /// <param name="id">L'identifiant de l'aéroport à supprimer.</param>
+    /// <returns>204 No Content si supprimé, 404 si non trouvé.</returns>
     [HttpDelete("{id:int}")]
-    [EndpointSummary("Delete an airline")]
-    [EndpointDescription("delete airline or returns bad request.")]
-    public async Task<ActionResult<Airport>> Delete(int id)
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Supprimer un aéroport")]
+    [EndpointDescription("Supprime définitivement un aéroport. Réservé aux administrateurs.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Delete(int id)
     {
-        var item = await _airlineRepository.GetByIdAsync(id);
-        if (item is null) return NotFound();
+        var item = await _airportRepository.GetByIdAsync(id);
+        if (item is null) return NotFound(new { message = $"Aéroport avec l'ID {id} non trouvé." });
+
         try
         {
-            await _airlineRepository.DeleteAsync(id);
+            await _airportRepository.DeleteAsync(id);
+            return NoContent();
         }
         catch (Exception e)
         {
-            return BadRequest(e);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Airport deleted successfully: {item}");
     }
 }

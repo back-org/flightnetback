@@ -1,121 +1,144 @@
-﻿using Flight.Domain.Entities;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace Flight.Api.Controllers;
 
+/// <summary>
+/// Contrôleur gérant les opérations CRUD sur les vols (<see cref="Flight.Domain.Entities.Flight"/>).
+/// Accès en lecture libre, opérations d'écriture réservées aux utilisateurs authentifiés.
+/// </summary>
 public class FlightsController : ParentController
 {
     private readonly IGenericRepository<Domain.Entities.Flight> _flightRepository;
 
+    /// <summary>
+    /// Initialise une nouvelle instance du <see cref="FlightsController"/>.
+    /// </summary>
+    /// <param name="manager">Le gestionnaire de dépôts injecté par DI.</param>
     public FlightsController(IRepositoryManager manager) : base(manager)
     {
         _flightRepository = Manager.Flight;
     }
 
     /// <summary>
-    /// Gets all the flights.
+    /// Retourne la liste complète de tous les vols enregistrés dans le système.
     /// </summary>
-    /// <returns>List of all real flights.</returns>
-    [EndpointDescription("Display list of flights.")]
-    [ProducesResponseType(typeof(IEnumerable<Domain.Entities.Flight>), 200)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), 404,
-        "application/problem+json")]
-    [EndpointName("flights")]
-    [EndpointSummary("All flights")]
+    /// <returns>Une liste de <see cref="Domain.Entities.Flight"/>.</returns>
+    [EndpointDescription("Retourne la liste de tous les vols disponibles.")]
+    [ProducesResponseType(typeof(IEnumerable<Domain.Entities.Flight>), StatusCodes.Status200OK)]
+    [EndpointName("GetAllFlights")]
+    [EndpointSummary("Tous les vols")]
     public override async Task<IActionResult> GetAll()
     {
         var flights = await _flightRepository.AllAsync();
-
         return Ok(flights);
     }
 
     /// <summary>
-    /// Retrieve a specific flight's details by ID.
+    /// Récupère un vol par son identifiant.
     /// </summary>
-    /// <param name="id">The ID of the flight to retrieve.</param>
-    /// <returns>The details of the requested flight.</returns>
+    /// <param name="id">L'identifiant du vol.</param>
+    /// <returns>Le vol correspondant, ou 404 si non trouvé.</returns>
     [HttpGet("{id:int}")]
     [EndpointName("GetFlightById")]
-    [EndpointSummary("Get a flight by id")]
-    [EndpointDescription("Fetch a flight by id or returns 404 if no flight with the ID exist.")]
-    [ProducesResponseType(typeof(Domain.Entities.Flight), 200)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), 404,
-        "application/problem+json")]
+    [EndpointSummary("Vol par ID")]
+    [EndpointDescription("Retourne un vol par son ID, ou 404 s'il n'existe pas.")]
+    [ProducesResponseType(typeof(Domain.Entities.Flight), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<Domain.Entities.Flight>> Get(int id)
     {
         var flight = await _flightRepository.GetByIdAsync(id);
-        if (flight == null) return NotFound();
-        return Ok($"Flight found: {flight}");
+        if (flight == null) return NotFound(new { message = $"Vol avec l'ID {id} non trouvé." });
+        return Ok(flight);
     }
 
     /// <summary>
-    /// Create a new flight.
+    /// Crée un nouveau vol.
     /// </summary>
-    /// <param name="flight">The flight information for creation.</param>
-    /// <returns>A confirmation of the flight successful creation.</returns>
+    /// <param name="flight">Les données du vol à créer.</param>
+    /// <returns>Le vol créé avec son nouvel identifiant.</returns>
     [HttpPost]
-    [EndpointSummary("Create a flight")]
-    [EndpointDescription("Create a flight or returns bad request.")]
-    [ProducesResponseType(typeof(Domain.Entities.Flight), 200)]
-    public async Task<ActionResult<Domain.Entities.Flight>> Create(FlightDto flight)
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Créer un vol")]
+    [EndpointDescription("Crée un nouveau vol. Réservé aux administrateurs.")]
+    [ProducesResponseType(typeof(Domain.Entities.Flight), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Domain.Entities.Flight>> Create([FromBody] Domain.Entities.FlightDto flight)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
-            await _flightRepository.AddAsync(new Domain.Entities.Flight(flight));
+            var entity = new Domain.Entities.Flight(flight);
+            await _flightRepository.AddAsync(entity);
+            return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity);
         }
         catch (Exception e)
         {
-            return BadRequest(e.InnerException);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Flight created successfully: {flight}");
     }
 
+    /// <summary>
+    /// Met à jour un vol existant.
+    /// </summary>
+    /// <param name="flight">Les nouvelles données du vol (doit inclure l'ID).</param>
+    /// <returns>Le vol mis à jour, ou 400/404 en cas d'erreur.</returns>
     [HttpPut]
-    [EndpointSummary("Update a flight")]
-    [EndpointDescription("Update flight or returns bad request.")]
-    public async Task<ActionResult<Domain.Entities.Flight>> Put([FromBody] FlightDto flight)
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Mettre à jour un vol")]
+    [EndpointDescription("Met à jour un vol existant. Réservé aux administrateurs.")]
+    [ProducesResponseType(typeof(Domain.Entities.Flight), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<Domain.Entities.Flight>> Put([FromBody] Domain.Entities.FlightDto flight)
     {
-        Domain.Entities.Flight item;
+        var item = await _flightRepository.GetByIdAsync(flight.Id);
+        if (item is null) return NotFound(new { message = $"Vol avec l'ID {flight.Id} non trouvé." });
+
         try
         {
-            item = await _flightRepository.GetByIdAsync(flight.Id);
             item.Copy(flight);
             await _flightRepository.Update(item);
+            return Ok(item);
         }
         catch (Exception e)
         {
-            return BadRequest(e);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Flight updated successfully: {item}");
     }
 
+    /// <summary>
+    /// Supprime un vol par son identifiant.
+    /// </summary>
+    /// <param name="id">L'identifiant du vol à supprimer.</param>
+    /// <returns>204 No Content si supprimé, 404 si non trouvé.</returns>
     [HttpDelete("{id:int}")]
-    [EndpointSummary("Delete a flight")]
-    [EndpointDescription("delete flight or returns bad request.")]
-    public async Task<ActionResult<Domain.Entities.Flight>> Delete(int id)
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Supprimer un vol")]
+    [EndpointDescription("Supprime définitivement un vol. Réservé aux administrateurs.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Delete(int id)
     {
         var item = await _flightRepository.GetByIdAsync(id);
-        if (item is null) return NotFound();
+        if (item is null) return NotFound(new { message = $"Vol avec l'ID {id} non trouvé." });
+
         try
         {
             await _flightRepository.DeleteAsync(id);
+            return NoContent();
         }
         catch (Exception e)
         {
-            return BadRequest(e);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Flight deleted successfully: {item}");
     }
 }

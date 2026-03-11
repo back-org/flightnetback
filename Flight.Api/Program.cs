@@ -8,64 +8,88 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Flight.Infrastructure.Auth;
 
+/*
+ * ============================================================
+ * FlightNet Backend — Point d'entrée de l'application ASP.NET
+ * ============================================================
+ * Configure le pipeline HTTP, les services DI et démarre le serveur.
+ * L'ordre de configuration middleware est important et doit être respecté.
+ */
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ──────────────────────────────────────────────
+// 1. Base de données (MySQL via Entity Framework)
+// ──────────────────────────────────────────────
+builder.Services.AddDataContext(builder.Configuration);
 
-builder.Services.AddDataContext();
-
+// ──────────────────────────────────────────────
+// 2. CORS (politique par défaut : AllowAll)
+// ──────────────────────────────────────────────
 builder.Services.ConfigureCORS();
 
+// ──────────────────────────────────────────────
+// 3. Contrôleurs MVC + sérialisation JSON
+// ──────────────────────────────────────────────
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
         options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver())
-    .AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = null);
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.PropertyNamingPolicy = null);
 
+// ──────────────────────────────────────────────
+// 4. OpenAPI / Scalar (documentation interactive)
+// ──────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
-// change all routes in lower case.
+builder.Services.AddOpenApi();
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
 
-builder.Services.AddOpenApi();
-
+// ──────────────────────────────────────────────
+// 5. Dépôts, services et cache
+// ──────────────────────────────────────────────
 builder.Services.AddRepoService();
+builder.Services.AddResponseCache();
 
-ConfigManager config = new ();
+// ──────────────────────────────────────────────
+// 6. Authentification JWT
+// ──────────────────────────────────────────────
+var configManager = new ConfigManager();
+var jwtTokenConfig = configManager.AppSetting
+    .GetSection("jwtTokenConfig")
+    .Get<JwtTokenConfig>()
+    ?? throw new InvalidOperationException(
+        "La section 'jwtTokenConfig' est manquante dans appsettings.json.");
 
-var jwtTokenConfig = config.AppSetting.GetSection("jwtTokenConfig").Get<JwtTokenConfig>();
 builder.Services.AddJwtService(jwtTokenConfig);
 
-builder.Services.AddCors(options =>
-{
-	options.AddPolicy("AllowAll",
-		builder => { builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); });
-});
-
-
+// ──────────────────────────────────────────────
+// Construction de l'application
+// ──────────────────────────────────────────────
 var app = builder.Build();
 
+// ──────────────────────────────────────────────
+// Pipeline HTTP — Développement
+// ──────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.UseHsts();
     app.MapScalarApiReference(options =>
-            options.WithTheme(ScalarTheme.Solarized)
-                .WithTitle("ASP.NET REST Web Api for ANgular Flight Application.")
-                .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
-    );
+        options.WithTheme(ScalarTheme.Solarized)
+               .WithTitle("FlightNet — API REST ASP.NET Core")
+               .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient));
 }
 
+// ──────────────────────────────────────────────
+// Pipeline HTTP — Middlewares
+// ──────────────────────────────────────────────
 app.UseHttpsRedirection();
-
-app.UseCors();
-
-app.UseRouting();
-
-app.UseAuthentication();
-
-app.UseAuthorization();
-
-app.MapControllers();
-
 app.UseStaticFiles();
+app.UseCors();
+app.UseResponseCaching();
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
 
 await app.RunAsync();

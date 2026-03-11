@@ -1,45 +1,61 @@
-﻿namespace Flight.Domain.Entities;
+namespace Flight.Domain.Entities;
 
 /// <summary>
-///     The genre.
+/// Représente le genre (sexe) d'un passager.
 /// </summary>
 public enum Genre
 {
+    /// <summary>Masculin.</summary>
     Male,
+
+    /// <summary>Féminin.</summary>
     Female,
+
+    /// <summary>Non spécifié ou inconnu.</summary>
     Unknown
 }
 
 /// <summary>
-///     The flight type.
+/// Représente la classe de confort disponible dans un vol.
 /// </summary>
 public enum Confort
 {
+    /// <summary>Classe affaires.</summary>
     Business,
+
+    /// <summary>Classe économique standard.</summary>
     Economy,
+
+    /// <summary>Classe confort (entre économique et affaires).</summary>
     Comfort,
+
+    /// <summary>Classe de luxe.</summary>
     Deluxe
 }
 
 /// <summary>
-///     The state.
+/// Représente le statut d'une réservation de vol.
 /// </summary>
 public enum Statut
 {
+    /// <summary>Réservation en attente de confirmation.</summary>
     Pending,
+
+    /// <summary>Réservation confirmée.</summary>
     Confirmed,
+
+    /// <summary>Réservation annulée.</summary>
     Cancelled
 }
 
 /// <summary>
-///     The statue of airline.
+/// Représente l'état d'activité d'une compagnie aérienne ou d'un aéroport.
 /// </summary>
 public enum State
 {
+    /// <summary>Entité active et opérationnelle.</summary>
     Active,
-    Inactive
-}
 
-public static class _constants
-{
+    /// <summary>Entité inactive ou suspendue.</summary>
+    Inactive
 }

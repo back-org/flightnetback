@@ -1,121 +1,145 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
 using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace Flight.Api.Controllers;
 
+/// <summary>
+/// Contrôleur gérant les opérations CRUD sur les compagnies aériennes (<see cref="Airline"/>).
+/// Accès en lecture libre, opérations d'écriture réservées aux administrateurs.
+/// </summary>
 public class AirlinesController : ParentController
 {
     private readonly IGenericRepository<Airline> _airlineRepository;
 
+    /// <summary>
+    /// Initialise une nouvelle instance du <see cref="AirlinesController"/>.
+    /// </summary>
+    /// <param name="manager">Le gestionnaire de dépôts injecté par DI.</param>
     public AirlinesController(IRepositoryManager manager) : base(manager)
     {
         _airlineRepository = Manager.Airline;
     }
 
     /// <summary>
-    /// Gets all the airlines.
+    /// Retourne la liste complète de toutes les compagnies aériennes enregistrées.
     /// </summary>
-    /// <returns>List of all real airlines.</returns>
-    [EndpointDescription("Display list of airlines.")]
-    [ProducesResponseType(typeof(IEnumerable<Airline>), 200)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), 404,
-        "application/problem+json")]
-    [EndpointName("airlines")]
-    [EndpointSummary("All airlines")]
+    /// <returns>Une liste de <see cref="Airline"/>.</returns>
+    [EndpointDescription("Retourne la liste de toutes les compagnies aériennes.")]
+    [ProducesResponseType(typeof(IEnumerable<Airline>), StatusCodes.Status200OK)]
+    [EndpointName("GetAllAirlines")]
+    [EndpointSummary("Toutes les compagnies aériennes")]
     public override async Task<IActionResult> GetAll()
     {
         var airlines = await _airlineRepository.AllAsync();
-
         return Ok(airlines);
     }
 
     /// <summary>
-    /// Retrieve a specific airline's details by ID.
+    /// Récupère une compagnie aérienne par son identifiant.
     /// </summary>
-    /// <param name="id">The ID of the airline to retrieve.</param>
-    /// <returns>The details of the requested airline.</returns>
+    /// <param name="id">L'identifiant de la compagnie aérienne.</param>
+    /// <returns>La compagnie aérienne correspondante, ou 404 si non trouvée.</returns>
     [HttpGet("{id:int}")]
     [EndpointName("GetAirlineById")]
-    [EndpointSummary("Get a airline by id")]
-    [EndpointDescription("Fetch a airline by id or returns 404 if no airline with the ID exist.")]
-    [ProducesResponseType(typeof(Airline), 200)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), 404,
-        "application/problem+json")]
+    [EndpointSummary("Compagnie aérienne par ID")]
+    [EndpointDescription("Retourne une compagnie aérienne par son ID, ou 404 si elle n'existe pas.")]
+    [ProducesResponseType(typeof(Airline), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<Airline>> Get(int id)
     {
         var airline = await _airlineRepository.GetByIdAsync(id);
-        if (airline == null) return NotFound();
-        return Ok($"Airline found: {airline}");
+        if (airline == null) return NotFound(new { message = $"Compagnie aérienne avec l'ID {id} non trouvée." });
+        return Ok(airline);
     }
 
     /// <summary>
-    /// Create a new airline.
+    /// Crée une nouvelle compagnie aérienne.
     /// </summary>
-    /// <param name="airline">The airline information for creation.</param>
-    /// <returns>A confirmation of the airline successful creation.</returns>
+    /// <param name="airline">Les données de la compagnie à créer.</param>
+    /// <returns>La compagnie créée avec son nouvel identifiant.</returns>
     [HttpPost]
-    [EndpointSummary("Create a airline")]
-    [EndpointDescription("Create a airline or returns bad request.")]
-    [ProducesResponseType(typeof(Airline), 200)]
-    public async Task<ActionResult<Airline>> Create(AirlineDto airline)
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Créer une compagnie aérienne")]
+    [EndpointDescription("Crée une nouvelle compagnie aérienne. Réservé aux administrateurs.")]
+    [ProducesResponseType(typeof(Airline), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Airline>> Create([FromBody] AirlineDto airline)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
-            await _airlineRepository.AddAsync(new Airline(airline));
+            var entity = new Airline(airline);
+            await _airlineRepository.AddAsync(entity);
+            return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity);
         }
         catch (Exception e)
         {
-            return BadRequest(e.InnerException);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Airline created successfully: {airline}");
     }
 
+    /// <summary>
+    /// Met à jour une compagnie aérienne existante.
+    /// </summary>
+    /// <param name="airline">Les nouvelles données de la compagnie (doit inclure l'ID).</param>
+    /// <returns>La compagnie mise à jour, ou 400 en cas d'erreur.</returns>
     [HttpPut]
-    [EndpointSummary("Update a airline")]
-    [EndpointDescription("Update airline or returns bad request.")]
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Mettre à jour une compagnie aérienne")]
+    [EndpointDescription("Met à jour une compagnie aérienne existante. Réservé aux administrateurs.")]
+    [ProducesResponseType(typeof(Airline), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<Airline>> Put([FromBody] AirlineDto airline)
     {
-        Airline item;
+        var item = await _airlineRepository.GetByIdAsync(airline.Id);
+        if (item is null) return NotFound(new { message = $"Compagnie aérienne avec l'ID {airline.Id} non trouvée." });
+
         try
         {
-            item = await _airlineRepository.GetByIdAsync(airline.Id);
             item.Copy(airline);
             await _airlineRepository.Update(item);
+            return Ok(item);
         }
         catch (Exception e)
         {
-            return BadRequest(e);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Airline updated successfully: {item}");
     }
 
+    /// <summary>
+    /// Supprime une compagnie aérienne par son identifiant.
+    /// </summary>
+    /// <param name="id">L'identifiant de la compagnie à supprimer.</param>
+    /// <returns>204 No Content si supprimée, 404 si non trouvée.</returns>
     [HttpDelete("{id:int}")]
-    [EndpointSummary("Delete a airline")]
-    [EndpointDescription("delete airline or returns bad request.")]
-    public async Task<ActionResult<Airline>> Delete(int id)
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Supprimer une compagnie aérienne")]
+    [EndpointDescription("Supprime définitivement une compagnie aérienne. Réservé aux administrateurs.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Delete(int id)
     {
         var item = await _airlineRepository.GetByIdAsync(id);
-        if (item is null) return NotFound();
+        if (item is null) return NotFound(new { message = $"Compagnie aérienne avec l'ID {id} non trouvée." });
+
         try
         {
             await _airlineRepository.DeleteAsync(id);
+            return NoContent();
         }
         catch (Exception e)
         {
-            return BadRequest(e);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Airline deleted successfully: {item}");
     }
 }

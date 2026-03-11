@@ -132,7 +132,7 @@ public abstract class GenericRepository<T> : Notifiable<Notification>, IGenericR
         try
         {
             await DeleteAsync(id);
-            return Result.Ok();
+            return (Result)Result.Ok();
         }
         catch (Exception ex)
         {
@@ -228,7 +228,7 @@ public abstract class GenericRepository<T> : Notifiable<Notification>, IGenericR
         {
             await AddAsync(entity);
 
-            return Result.Ok();
+            return (Result)Result.Ok();
         }
         catch (Exception ex)
         {
@@ -363,7 +363,7 @@ public abstract class GenericRepository<T> : Notifiable<Notification>, IGenericR
         {
             await UpdateAsync(old, entity);
 
-            return Result.Ok();
+            return (Result)Result.Ok();
         }
         catch (Exception ex)
         {

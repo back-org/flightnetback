@@ -1,121 +1,139 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
 using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace Flight.Api.Controllers;
 
+/// <summary>
+/// Contrôleur gérant les opérations CRUD sur les entités <see cref="Booking"/>.
+/// </summary>
 public class BookingsController : ParentController
 {
-    private readonly IGenericRepository<Booking> _bookingRepository;
+    private readonly IGenericRepository<Booking> _repository;
 
+    /// <summary>
+    /// Initialise une nouvelle instance du <see cref="BookingsController"/>.
+    /// </summary>
+    /// <param name="manager">Le gestionnaire de dépôts injecté par DI.</param>
     public BookingsController(IRepositoryManager manager) : base(manager)
     {
-        _bookingRepository = Manager.Booking;
+        _repository = Manager.Booking;
     }
 
     /// <summary>
-    /// Gets all the bookings.
+    /// Retourne la liste complète des <see cref="Booking"/> enregistrés.
     /// </summary>
-    /// <returns>List of all real bookings.</returns>
-    [EndpointDescription("Display list of bookings.")]
-    [ProducesResponseType(typeof(IEnumerable<Booking>), 200)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), 404,
-        "application/problem+json")]
-    [EndpointName("bookings")]
-    [EndpointSummary("All bookings")]
+    /// <returns>Une liste de <see cref="Booking"/>.</returns>
+    [ProducesResponseType(typeof(IEnumerable<Booking>), StatusCodes.Status200OK)]
+    [EndpointName("GetAllBookings")]
+    [EndpointSummary("Tous les bookings")]
     public override async Task<IActionResult> GetAll()
     {
-        var bookings = await _bookingRepository.AllAsync();
-
-        return Ok(bookings);
+        var items = await _repository.AllAsync();
+        return Ok(items);
     }
 
     /// <summary>
-    /// Retrieve a specific booking's details by ID.
+    /// Récupère un(e) <see cref="Booking"/> par son identifiant.
     /// </summary>
-    /// <param name="id">The ID of the booking to retrieve.</param>
-    /// <returns>The details of the requested booking.</returns>
+    /// <param name="id">L'identifiant de la ressource.</param>
+    /// <returns>La ressource correspondante, ou 404 si non trouvée.</returns>
     [HttpGet("{id:int}")]
     [EndpointName("GetBookingById")]
-    [EndpointSummary("Get a booking by id")]
-    [EndpointDescription("Fetch a booking by id or returns 404 if no booking with the ID exist.")]
-    [ProducesResponseType(typeof(Booking), 200)]
-    [ProducesResponseType(typeof(HttpValidationProblemDetails), 404,
-        "application/problem+json")]
+    [EndpointSummary("Booking par ID")]
+    [ProducesResponseType(typeof(Booking), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<Booking>> Get(int id)
     {
-        var booking = await _bookingRepository.GetByIdAsync(id);
-        if (booking == null) return NotFound();
-        return Ok($"Booking found: {booking}");
+        var item = await _repository.GetByIdAsync(id);
+        if (item == null) return NotFound(new { message = $"Booking avec l'ID {id} non trouvé(e)." });
+        return Ok(item);
     }
 
     /// <summary>
-    /// Create a new booking.
+    /// Crée un(e) nouveau/nouvelle <see cref="Booking"/>.
     /// </summary>
-    /// <param name="booking">The booking information for creation.</param>
-    /// <returns>A confirmation of the booking successful creation.</returns>
+    /// <param name="dto">Les données de la ressource à créer.</param>
+    /// <returns>La ressource créée avec son nouvel identifiant.</returns>
     [HttpPost]
-    [EndpointSummary("Create a booking")]
-    [EndpointDescription("Create a booking or returns bad request.")]
-    [ProducesResponseType(typeof(Booking), 200)]
-    public async Task<ActionResult<Booking>> Create(BookingDto booking)
+    [Authorize(Roles = "Admin,BasicUser")]
+    [EndpointSummary("Créer un(e) booking")]
+    [ProducesResponseType(typeof(Booking), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Booking>> Create([FromBody] BookingDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
-            await _bookingRepository.AddAsync(new Booking(booking));
+            var entity = new Booking(dto);
+            await _repository.AddAsync(entity);
+            return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity);
         }
         catch (Exception e)
         {
-            return BadRequest(e.InnerException);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Booking created successfully: {booking}");
     }
 
+    /// <summary>
+    /// Met à jour un(e) <see cref="Booking"/> existant(e).
+    /// </summary>
+    /// <param name="dto">Les nouvelles données (doit inclure l'ID).</param>
+    /// <returns>La ressource mise à jour, ou 400/404 en cas d'erreur.</returns>
     [HttpPut]
-    [EndpointSummary("Update a booking")]
-    [EndpointDescription("Update booking or returns bad request.")]
-    public async Task<ActionResult<Booking>> Put([FromBody] BookingDto booking)
+    [Authorize(Roles = "Admin,BasicUser")]
+    [EndpointSummary("Mettre à jour un(e) booking")]
+    [ProducesResponseType(typeof(Booking), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<Booking>> Put([FromBody] BookingDto dto)
     {
-        Booking item;
+        var item = await _repository.GetByIdAsync(dto.Id);
+        if (item is null) return NotFound(new { message = $"Booking avec l'ID {dto.Id} non trouvé(e)." });
+
         try
         {
-            item = await _bookingRepository.GetByIdAsync(booking.Id);
-            item.Copy(booking);
-            await _bookingRepository.Update(item);
+            item.Copy(dto);
+            await _repository.Update(item);
+            return Ok(item);
         }
         catch (Exception e)
         {
-            return BadRequest(e);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Booking updated successfully: {item}");
     }
 
+    /// <summary>
+    /// Supprime un(e) <see cref="Booking"/> par son identifiant.
+    /// </summary>
+    /// <param name="id">L'identifiant de la ressource à supprimer.</param>
+    /// <returns>204 No Content si supprimé(e), 404 si non trouvé(e).</returns>
     [HttpDelete("{id:int}")]
-    [EndpointSummary("Delete a booking")]
-    [EndpointDescription("delete booking or returns bad request.")]
-    public async Task<ActionResult<Booking>> Delete(int id)
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Supprimer un(e) booking")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Delete(int id)
     {
-        var item = await _bookingRepository.GetByIdAsync(id);
-        if (item is null) return NotFound();
+        var item = await _repository.GetByIdAsync(id);
+        if (item is null) return NotFound(new { message = $"Booking avec l'ID {id} non trouvé(e)." });
+
         try
         {
-            await _bookingRepository.DeleteAsync(id);
+            await _repository.DeleteAsync(id);
+            return NoContent();
         }
         catch (Exception e)
         {
-            return BadRequest(e);
+            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
         }
-
-        return Ok($"Booking deleted successfully: {item}");
     }
 }
