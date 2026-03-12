@@ -1,3 +1,4 @@
+using Flight.Api.Models;
 using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Interfaces;
@@ -7,28 +8,40 @@ using Microsoft.AspNetCore.Mvc;
 namespace Flight.Api.Controllers;
 
 /// <summary>
-/// Contrôleur gérant les opérations CRUD sur les entités <see cref="Passenger"/>.
+/// Contrôleur responsable de la gestion des passagers.
+/// Il permet de consulter, créer, modifier et supprimer des passagers.
 /// </summary>
+/// <remarks>
+/// Les opérations de lecture sont accessibles librement.
+/// La création et la modification sont autorisées aux rôles <c>Admin</c> et <c>BasicUser</c>.
+/// La suppression est réservée aux administrateurs.
+/// </remarks>
+[ApiController]
+[Route("api/[controller]")]
+[Produces("application/json")]
 public class PassengersController : ParentController
 {
     private readonly IGenericRepository<Passenger> _repository;
 
     /// <summary>
-    /// Initialise une nouvelle instance du <see cref="PassengersController"/>.
+    /// Initialise une nouvelle instance du contrôleur des passagers.
     /// </summary>
-    /// <param name="manager">Le gestionnaire de dépôts injecté par DI.</param>
+    /// <param name="manager">Gestionnaire central des repositories injecté par l'application.</param>
     public PassengersController(IRepositoryManager manager) : base(manager)
     {
         _repository = Manager.Passenger;
     }
 
     /// <summary>
-    /// Retourne la liste complète des <see cref="Passenger"/> enregistrés.
+    /// Retourne la liste complète des passagers enregistrés.
     /// </summary>
-    /// <returns>Une liste de <see cref="Passenger"/>.</returns>
-    [ProducesResponseType(typeof(IEnumerable<Passenger>), StatusCodes.Status200OK)]
+    /// <returns>Une collection complète de passagers.</returns>
+    [HttpGet]
+    [AllowAnonymous]
     [EndpointName("GetAllPassengers")]
-    [EndpointSummary("Tous les passengers")]
+    [EndpointSummary("Lister tous les passagers")]
+    [EndpointDescription("Retourne la liste complète des passagers enregistrés dans le système.")]
+    [ProducesResponseType(typeof(IEnumerable<Passenger>), StatusCodes.Status200OK)]
     public override async Task<IActionResult> GetAll()
     {
         var items = await _repository.AllAsync();
@@ -36,99 +49,179 @@ public class PassengersController : ParentController
     }
 
     /// <summary>
-    /// Récupère un(e) <see cref="Passenger"/> par son identifiant.
+    /// Retourne le détail d'un passager à partir de son identifiant.
     /// </summary>
-    /// <param name="id">L'identifiant de la ressource.</param>
-    /// <returns>La ressource correspondante, ou 404 si non trouvée.</returns>
+    /// <param name="id">Identifiant unique du passager.</param>
+    /// <returns>Le passager correspondant si trouvé.</returns>
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     [EndpointName("GetPassengerById")]
-    [EndpointSummary("Passenger par ID")]
+    [EndpointSummary("Obtenir un passager par identifiant")]
+    [EndpointDescription("Recherche un passager à partir de son identifiant. Retourne 404 si aucun passager correspondant n'existe.")]
     [ProducesResponseType(typeof(Passenger), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Passenger>> Get(int id)
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<Passenger>> Get([FromRoute] int id)
     {
         var item = await _repository.GetByIdAsync(id);
-        if (item == null) return NotFound(new { message = $"Passenger avec l'ID {id} non trouvé(e)." });
+
+        if (item is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                StatusCode = StatusCodes.Status404NotFound,
+                Message = "Passager introuvable.",
+                Detail = $"Aucun passager n'a été trouvé avec l'identifiant {id}.",
+                TraceId = HttpContext.TraceIdentifier
+            });
+        }
+
         return Ok(item);
     }
 
     /// <summary>
-    /// Crée un(e) nouveau/nouvelle <see cref="Passenger"/>.
+    /// Crée un nouveau passager.
     /// </summary>
-    /// <param name="dto">Les données de la ressource à créer.</param>
-    /// <returns>La ressource créée avec son nouvel identifiant.</returns>
+    /// <param name="dto">Données du passager à créer.</param>
+    /// <returns>Le passager créé avec son identifiant généré.</returns>
     [HttpPost]
     [Authorize(Roles = "Admin,BasicUser")]
-    [EndpointSummary("Créer un(e) passenger")]
+    [EndpointName("CreatePassenger")]
+    [EndpointSummary("Créer un passager")]
+    [EndpointDescription("Crée un nouveau passager à partir des données fournies. Endpoint autorisé aux rôles Admin et BasicUser.")]
     [ProducesResponseType(typeof(Passenger), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<Passenger>> Create([FromBody] PassengerDto dto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new ErrorResponse
+            {
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Le modèle envoyé est invalide.",
+                Detail = "Vérifiez les champs obligatoires et les contraintes de validation.",
+                TraceId = HttpContext.TraceIdentifier
+            });
+        }
 
         try
         {
             var entity = new Passenger(dto);
             await _repository.AddAsync(entity);
+
             return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity);
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
+            return BadRequest(new ErrorResponse
+            {
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "La création du passager a échoué.",
+                Detail = ex.InnerException?.Message ?? ex.Message,
+                TraceId = HttpContext.TraceIdentifier
+            });
         }
     }
 
     /// <summary>
-    /// Met à jour un(e) <see cref="Passenger"/> existant(e).
+    /// Met à jour un passager existant.
     /// </summary>
-    /// <param name="dto">Les nouvelles données (doit inclure l'ID).</param>
-    /// <returns>La ressource mise à jour, ou 400/404 en cas d'erreur.</returns>
+    /// <param name="dto">Données mises à jour du passager, incluant son identifiant.</param>
+    /// <returns>Le passager mis à jour.</returns>
     [HttpPut]
     [Authorize(Roles = "Admin,BasicUser")]
-    [EndpointSummary("Mettre à jour un(e) passenger")]
+    [EndpointName("UpdatePassenger")]
+    [EndpointSummary("Mettre à jour un passager")]
+    [EndpointDescription("Met à jour un passager existant à partir des données fournies. Endpoint autorisé aux rôles Admin et BasicUser.")]
     [ProducesResponseType(typeof(Passenger), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<Passenger>> Put([FromBody] PassengerDto dto)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new ErrorResponse
+            {
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Le modèle envoyé est invalide.",
+                Detail = "Vérifiez les champs obligatoires et les contraintes de validation.",
+                TraceId = HttpContext.TraceIdentifier
+            });
+        }
+
         var item = await _repository.GetByIdAsync(dto.Id);
-        if (item is null) return NotFound(new { message = $"Passenger avec l'ID {dto.Id} non trouvé(e)." });
+
+        if (item is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                StatusCode = StatusCodes.Status404NotFound,
+                Message = "Passager introuvable.",
+                Detail = $"Aucun passager n'a été trouvé avec l'identifiant {dto.Id}.",
+                TraceId = HttpContext.TraceIdentifier
+            });
+        }
 
         try
         {
             item.Copy(dto);
             await _repository.Update(item);
+
             return Ok(item);
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
+            return BadRequest(new ErrorResponse
+            {
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "La mise à jour du passager a échoué.",
+                Detail = ex.InnerException?.Message ?? ex.Message,
+                TraceId = HttpContext.TraceIdentifier
+            });
         }
     }
 
     /// <summary>
-    /// Supprime un(e) <see cref="Passenger"/> par son identifiant.
+    /// Supprime définitivement un passager à partir de son identifiant.
     /// </summary>
-    /// <param name="id">L'identifiant de la ressource à supprimer.</param>
-    /// <returns>204 No Content si supprimé(e), 404 si non trouvé(e).</returns>
+    /// <param name="id">Identifiant unique du passager à supprimer.</param>
+    /// <returns>Une réponse vide si la suppression réussit.</returns>
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
-    [EndpointSummary("Supprimer un(e) passenger")]
+    [EndpointName("DeletePassenger")]
+    [EndpointSummary("Supprimer un passager")]
+    [EndpointDescription("Supprime définitivement un passager existant. Endpoint réservé aux administrateurs.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> Delete(int id)
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> Delete([FromRoute] int id)
     {
         var item = await _repository.GetByIdAsync(id);
-        if (item is null) return NotFound(new { message = $"Passenger avec l'ID {id} non trouvé(e)." });
+
+        if (item is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                StatusCode = StatusCodes.Status404NotFound,
+                Message = "Passager introuvable.",
+                Detail = $"Aucun passager n'a été trouvé avec l'identifiant {id}.",
+                TraceId = HttpContext.TraceIdentifier
+            });
+        }
 
         try
         {
             await _repository.DeleteAsync(id);
             return NoContent();
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            return BadRequest(new { message = e.InnerException?.Message ?? e.Message });
+            return BadRequest(new ErrorResponse
+            {
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "La suppression du passager a échoué.",
+                Detail = ex.InnerException?.Message ?? ex.Message,
+                TraceId = HttpContext.TraceIdentifier
+            });
         }
     }
 }
