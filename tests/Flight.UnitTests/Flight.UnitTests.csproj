@@ -28,10 +28,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Flight.Api\Flight.Api.csproj" />
-		<ProjectReference Include="..\Flight.Application\Flight.Application.csproj" />
-		<ProjectReference Include="..\Flight.Domain\Flight.Domain.csproj" />
-		<ProjectReference Include="..\Flight.Infrastructure\Flight.Infrastructure.csproj" />
+	  <ProjectReference Include="..\..\src\Flight.Api\Flight.Api.csproj" />
+	  <ProjectReference Include="..\..\src\Flight.Application\Flight.Application.csproj" />
+	  <ProjectReference Include="..\..\src\Flight.Domain.Core\Flight.Domain.Core.csproj" />
+	  <ProjectReference Include="..\..\src\Flight.Domain\Flight.Domain.csproj" />
+	  <ProjectReference Include="..\..\src\Flight.Infrastructure\Flight.Infrastructure.csproj" />
 	</ItemGroup>
 
 </Project>

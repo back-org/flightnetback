@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Flight.Api.Models;
-using Flight.Domain.Entities;
+using Flight.Application.DTOs;
 using FluentAssertions;
 using Xunit;
 

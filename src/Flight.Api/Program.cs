@@ -163,3 +163,7 @@ app.MapGet("/", () => Results.Ok(new
 .WithDescription("Retourne les informations de base de l'application et les liens de documentation.");
 
 await app.RunAsync();
+
+public partial class Program
+{
+}
