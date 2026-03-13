@@ -5,19 +5,19 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copier les fichiers projet pour restaurer les dépendances
-COPY ["Flight.Api/Flight.Api.csproj", "Flight.Api/"]
-COPY ["Flight.Application/Flight.Application.csproj", "Flight.Application/"]
-COPY ["Flight.Domain/Flight.Domain.csproj", "Flight.Domain/"]
-COPY ["Flight.Infrastructure/Flight.Infrastructure.csproj", "Flight.Infrastructure/"]
+COPY ["src/Flight.Api/Flight.Api.csproj", "src/Flight.Api/"]
+COPY ["src/Flight.Application/Flight.Application.csproj", "src/Flight.Application/"]
+COPY ["src/Flight.Domain/Flight.Domain.csproj", "src/Flight.Domain/"]
+COPY ["src/Flight.Infrastructure/Flight.Infrastructure.csproj", "src/Flight.Infrastructure/"]
 
 # Restaurer les packages NuGet
-RUN dotnet restore "Flight.Api/Flight.Api.csproj"
+RUN dotnet restore "src/Flight.Api/Flight.Api.csproj"
 
 # Copier tout le code source
 COPY . .
 
 # Publier l'application en Release
-WORKDIR /src/Flight.Api
+WORKDIR /src/src/Flight.Api
 RUN dotnet publish "Flight.Api.csproj" \
     -c Release \
     -o /app/publish \
@@ -47,7 +47,7 @@ ENV ASPNETCORE_URLS=http://+:8080
 
 EXPOSE 8080
 
-# Repasser en utilisateur non-root
+# Exécution avec utilisateur non privilégié
 USER appuser
 
 ENTRYPOINT ["dotnet", "Flight.Api.dll"]

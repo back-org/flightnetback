@@ -34,7 +34,7 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
 
-      # IMPORTANT : aligné avec AddDataContext(builder.Configuration)
+      # Aligné avec configuration.GetConnectionString("DbConn")
       ConnectionStrings__DbConn: Server=db;Port=3306;Database=${MYSQL_DATABASE:-flightnet};Uid=${MYSQL_USER:-flightuser};Pwd=${MYSQL_PASSWORD:-flightpass};
 
       jwtTokenConfig__Secret: ${JWT_SECRET:-superSecretKey@345FlightNet2024!}
@@ -45,7 +45,7 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
