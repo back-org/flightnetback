@@ -1,14 +1,10 @@
 using Flight.Application.DTOs;
-using Flight.Domain.Entities;
 using Flight.Infrastructure.Interfaces;
 using MediatR;
 
 namespace Flight.Application.CQRS.Commands.Bookings;
 
-/// <summary>
-/// Commande MediatR pour la création d'une réservation.
-/// </summary>
-public record CreateBookingCommand(BookingDto Dto, string PerformedBy) : IRequest<BookingDto>;
+public record CreateBookingCommand(BookingDto Dto, string? PerformedBy = null) : IRequest<BookingDto>;
 
 public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand, BookingDto>
 {
@@ -23,9 +19,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
 
     public async Task<BookingDto> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
     {
-        // Conversion DTO → Entity
         var entity = request.Dto.ToEntity();
-
         await _manager.Booking.AddAsync(entity);
 
         await _audit.RecordAsync(
@@ -36,7 +30,6 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             performedBy: request.PerformedBy,
             cancellationToken: cancellationToken);
 
-        // Conversion Entity → DTO
         return entity.ToDto();
     }
 }
