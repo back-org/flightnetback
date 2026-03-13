@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # ─── Base de données MySQL ────────────────────────────────────
   db:
@@ -16,10 +14,11 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
 
   # ─── API FlightNet ────────────────────────────────────────────
   api:
@@ -34,22 +33,23 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: >
-        Server=db;Port=3306;Database=${MYSQL_DATABASE:-flightnet};
-        Uid=${MYSQL_USER:-flightuser};Pwd=${MYSQL_PASSWORD:-flightpass};
+
+      # IMPORTANT : aligné avec AddDataContext(builder.Configuration)
+      ConnectionStrings__DbConn: Server=db;Port=3306;Database=${MYSQL_DATABASE:-flightnet};Uid=${MYSQL_USER:-flightuser};Pwd=${MYSQL_PASSWORD:-flightpass};
+
       jwtTokenConfig__Secret: ${JWT_SECRET:-superSecretKey@345FlightNet2024!}
-      jwtTokenConfig__Issuer: FlightNet
-      jwtTokenConfig__Audience: FlightNetClient
-      jwtTokenConfig__AccessTokenExpiration: 20
-      jwtTokenConfig__RefreshTokenExpiration: 60
+      jwtTokenConfig__Issuer: ${JWT_ISSUER:-FlightNet}
+      jwtTokenConfig__Audience: ${JWT_AUDIENCE:-FlightNetClient}
+      jwtTokenConfig__AccessTokenExpiration: ${JWT_ACCESS_EXPIRATION:-20}
+      jwtTokenConfig__RefreshTokenExpiration: ${JWT_REFRESH_EXPIRATION:-60}
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 30s
 
   # ─── Adminer (gestion DB en dev) ─────────────────────────────
   adminer:

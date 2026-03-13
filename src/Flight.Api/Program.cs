@@ -162,6 +162,14 @@ app.MapGet("/", () => Results.Ok(new
 .WithSummary("Point d'entrée de l'application")
 .WithDescription("Retourne les informations de base de l'application et les liens de documentation.");
 
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "Healthy",
+    application = "FlightNet REST API"
+}))
+.WithSummary("Point de contrôle de santé")
+.WithDescription("Retourne l'état de santé de l'application.");
+
 await app.RunAsync();
 
 public partial class Program

@@ -4,21 +4,19 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copier les fichiers de projet pour restaurer les dépendances en cache
-COPY ["Flight.Api/Flight.Api.csproj",           "Flight.Api/"]
+# Copier les fichiers projet pour restaurer les dépendances
+COPY ["Flight.Api/Flight.Api.csproj", "Flight.Api/"]
 COPY ["Flight.Application/Flight.Application.csproj", "Flight.Application/"]
-COPY ["Flight.CrossCutting/Flight.CrossCutting.csproj", "Flight.CrossCutting/"]
-COPY ["Flight.Domain/Flight.Domain.csproj",       "Flight.Domain/"]
-COPY ["Flight.Domain.Core/Flight.Domain.Core.csproj", "Flight.Domain.Core/"]
+COPY ["Flight.Domain/Flight.Domain.csproj", "Flight.Domain/"]
 COPY ["Flight.Infrastructure/Flight.Infrastructure.csproj", "Flight.Infrastructure/"]
-COPY ["Flight.Util/Flight.Util.csproj",           "Flight.Util/"]
 
+# Restaurer les packages NuGet
 RUN dotnet restore "Flight.Api/Flight.Api.csproj"
 
 # Copier tout le code source
 COPY . .
 
-# Publier en mode Release
+# Publier l'application en Release
 WORKDIR /src/Flight.Api
 RUN dotnet publish "Flight.Api.csproj" \
     -c Release \
@@ -31,9 +29,17 @@ RUN dotnet publish "Flight.Api.csproj" \
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 
-# Sécurité : exécuter en tant qu'utilisateur non-root
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-USER appuser
+# Installer curl pour le healthcheck Docker
+USER root
+RUN apt-get update \
+    && apt-get install -y curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Créer un utilisateur non-root
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+# Copier l'application publiée
+COPY --from=build /app/publish .
 
 # Variables d'environnement par défaut
 ENV ASPNETCORE_ENVIRONMENT=Production
@@ -41,6 +47,7 @@ ENV ASPNETCORE_URLS=http://+:8080
 
 EXPOSE 8080
 
-COPY --from=build /app/publish .
+# Repasser en utilisateur non-root
+USER appuser
 
 ENTRYPOINT ["dotnet", "Flight.Api.dll"]
