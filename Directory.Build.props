@@ -1,30 +1,30 @@
 <Project>
   <PropertyGroup>
-    <!-- Framework par défaut -->
+    <!-- Framework par défaut pour tous les projets -->
     <TargetFramework>net9.0</TargetFramework>
 
-    <!-- Langage / compilation -->
+    <!-- Bonnes pratiques de compilation -->
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
 
-    <!-- Qualité / diagnostics -->
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- Analyse et qualité -->
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
 
     <!-- Génération -->
     <Deterministic>true</Deterministic>
     <DebugType>portable</DebugType>
 
-    <!-- Métadonnées générales -->
+    <!-- Métadonnées globales -->
     <Company>FlightNet</Company>
     <Authors>FlightNet Team</Authors>
     <Product>FlightNet</Product>
+    <Description>FlightNet REST API - Plateforme professionnelle de gestion de vols et réservations</Description>
     <RepositoryUrl>https://example.com/flightnet</RepositoryUrl>
   </PropertyGroup>
 
-  <!-- Options de compilation communes -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <DefineConstants>DEBUG;TRACE</DefineConstants>
   </PropertyGroup>
