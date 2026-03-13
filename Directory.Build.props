@@ -1,0 +1,36 @@
+<Project>
+  <PropertyGroup>
+    <!-- Framework par défaut -->
+    <TargetFramework>net9.0</TargetFramework>
+
+    <!-- Langage / compilation -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Qualité / diagnostics -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+
+    <!-- Génération -->
+    <Deterministic>true</Deterministic>
+    <DebugType>portable</DebugType>
+
+    <!-- Métadonnées générales -->
+    <Company>FlightNet</Company>
+    <Authors>FlightNet Team</Authors>
+    <Product>FlightNet</Product>
+    <RepositoryUrl>https://example.com/flightnet</RepositoryUrl>
+  </PropertyGroup>
+
+  <!-- Options de compilation communes -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+</Project>
