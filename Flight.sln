@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flight.Util", "src\Flight.U
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flight.UnitTests", "tests\Flight.UnitTests\Flight.UnitTests.csproj", "{BA5DAC9C-C845-F31A-8ADB-6F4582FE75EE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flight.IntegrationTests", "tests\Flight.IntegrationTests\Flight.IntegrationTests.csproj", "{AAF9DA31-617D-4B3F-A596-FD4A37847552}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,10 @@ Global
 		{BA5DAC9C-C845-F31A-8ADB-6F4582FE75EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BA5DAC9C-C845-F31A-8ADB-6F4582FE75EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BA5DAC9C-C845-F31A-8ADB-6F4582FE75EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AAF9DA31-617D-4B3F-A596-FD4A37847552}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AAF9DA31-617D-4B3F-A596-FD4A37847552}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AAF9DA31-617D-4B3F-A596-FD4A37847552}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AAF9DA31-617D-4B3F-A596-FD4A37847552}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

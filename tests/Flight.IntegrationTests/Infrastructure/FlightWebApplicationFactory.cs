@@ -4,13 +4,12 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Flight.IntegrationTests;
+namespace Flight.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Factory WebApplication pour les tests d'intégration.
-/// Remplace la base de données réelle par une base SQLite en mémoire.
+/// Factory permettant de démarrer l'application ASP.NET Core pour les tests d'intégration.
 /// </summary>
-public class FlightWebApplicationFactory : WebApplicationFactory<Flight.Api.Program>
+public class FlightWebApplicationFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -18,22 +17,24 @@ public class FlightWebApplicationFactory : WebApplicationFactory<Flight.Api.Prog
 
         builder.ConfigureServices(services =>
         {
-            // Supprimer le DbContext existant
             var descriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<FlightContext>));
-            if (descriptor != null)
-                services.Remove(descriptor);
 
-            // Ajouter un DbContext en mémoire pour les tests
+            if (descriptor != null)
+            {
+                services.Remove(descriptor);
+            }
+
             services.AddDbContext<FlightContext>(options =>
             {
                 options.UseInMemoryDatabase("FlightNetTestDb_" + Guid.NewGuid());
             });
 
-            // Initialiser la base de données de test
             var sp = services.BuildServiceProvider();
+
             using var scope = sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<FlightContext>();
+
             db.Database.EnsureCreated();
         });
     }
