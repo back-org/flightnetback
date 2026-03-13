@@ -1,5 +1,4 @@
-
-using Flight.Domain.Entities;
+using Flight.Application.DTOs;
 using Flight.Infrastructure.Interfaces;
 using MediatR;
 
@@ -26,7 +25,9 @@ public class CreateFlightCommandHandler : IRequestHandler<CreateFlightCommand, F
 
     public async Task<FlightDto> Handle(CreateFlightCommand request, CancellationToken cancellationToken)
     {
-        var entity = new Domain.Entities.Flight(request.Dto);
+        // Conversion DTO → Entity
+        var entity = request.Dto.ToEntity();
+
         await _manager.Flight.AddAsync(entity);
 
         await _audit.RecordAsync(
@@ -36,6 +37,7 @@ public class CreateFlightCommandHandler : IRequestHandler<CreateFlightCommand, F
             details: $"Vol créé: {entity.Code}",
             cancellationToken: cancellationToken);
 
+        // Conversion Entity → DTO
         return entity.ToDto();
     }
 }

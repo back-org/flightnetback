@@ -1,4 +1,6 @@
+using Asp.Versioning;
 using Flight.Api.Models;
+using Flight.Application.DTOs;
 using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Interfaces;
@@ -11,16 +13,13 @@ namespace Flight.Api.Controllers;
 /// Contrôleur responsable de la gestion des compagnies aériennes.
 /// Il permet de consulter, créer, modifier et supprimer des compagnies aériennes.
 /// </summary>
-/// <remarks>
-/// Les opérations de lecture sont accessibles librement.
-/// Les opérations d'écriture sont réservées aux utilisateurs ayant le rôle <c>Admin</c>.
-/// </remarks>
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Produces("application/json")]
 public class AirlinesController : ParentController
 {
-    private readonly IGenericRepository<Airline> _airlineRepository;
+    private readonly IGenericRepository<Airline> _repository;
 
     /// <summary>
     /// Initialise une nouvelle instance du contrôleur des compagnies aériennes.
@@ -28,42 +27,39 @@ public class AirlinesController : ParentController
     /// <param name="manager">Gestionnaire central des repositories injecté par l'application.</param>
     public AirlinesController(IRepositoryManager manager) : base(manager)
     {
-        _airlineRepository = Manager.Airline;
+        _repository = Manager.Airline;
     }
 
     /// <summary>
     /// Retourne la liste complète des compagnies aériennes enregistrées.
     /// </summary>
-    /// <returns>Une collection de compagnies aériennes.</returns>
     [HttpGet]
     [AllowAnonymous]
     [EndpointName("GetAllAirlines")]
     [EndpointSummary("Lister toutes les compagnies aériennes")]
     [EndpointDescription("Retourne la liste complète des compagnies aériennes enregistrées dans le système.")]
-    [ProducesResponseType(typeof(IEnumerable<Airline>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<AirlineDto>), StatusCodes.Status200OK)]
     public override async Task<IActionResult> GetAll()
     {
-        var airlines = await _airlineRepository.AllAsync();
-        return Ok(airlines);
+        var items = await _repository.AllAsync();
+        return Ok(items.Select(x => x.ToDto()));
     }
 
     /// <summary>
     /// Retourne le détail d'une compagnie aérienne à partir de son identifiant.
     /// </summary>
-    /// <param name="id">Identifiant unique de la compagnie aérienne.</param>
-    /// <returns>La compagnie aérienne correspondante si elle existe.</returns>
     [HttpGet("{id:int}")]
     [AllowAnonymous]
     [EndpointName("GetAirlineById")]
     [EndpointSummary("Obtenir une compagnie aérienne par identifiant")]
     [EndpointDescription("Recherche une compagnie aérienne à partir de son identifiant. Retourne 404 si elle n'existe pas.")]
-    [ProducesResponseType(typeof(Airline), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AirlineDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Airline>> Get([FromRoute] int id)
+    public async Task<ActionResult<AirlineDto>> Get([FromRoute] int id)
     {
-        var airline = await _airlineRepository.GetByIdAsync(id);
+        var item = await _repository.GetByIdAsync(id);
 
-        if (airline is null)
+        if (item is null)
         {
             return NotFound(new ErrorResponse
             {
@@ -74,22 +70,20 @@ public class AirlinesController : ParentController
             });
         }
 
-        return Ok(airline);
+        return Ok(item.ToDto());
     }
 
     /// <summary>
     /// Crée une nouvelle compagnie aérienne.
     /// </summary>
-    /// <param name="airline">Données de la compagnie aérienne à créer.</param>
-    /// <returns>La compagnie créée avec son identifiant généré.</returns>
     [HttpPost]
     [Authorize(Roles = "Admin")]
     [EndpointName("CreateAirline")]
     [EndpointSummary("Créer une compagnie aérienne")]
     [EndpointDescription("Crée une nouvelle compagnie aérienne à partir des données fournies. Endpoint réservé aux administrateurs.")]
-    [ProducesResponseType(typeof(Airline), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(AirlineDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<Airline>> Create([FromBody] AirlineDto airline)
+    public async Task<ActionResult<AirlineDto>> Create([FromBody] AirlineDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -104,10 +98,10 @@ public class AirlinesController : ParentController
 
         try
         {
-            var entity = new Airline(airline);
-            await _airlineRepository.AddAsync(entity);
+            var entity = dto.ToEntity();
+            await _repository.AddAsync(entity);
 
-            return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity);
+            return CreatedAtAction(nameof(Get), new { version = "1.0", id = entity.Id }, entity.ToDto());
         }
         catch (Exception ex)
         {
@@ -124,17 +118,15 @@ public class AirlinesController : ParentController
     /// <summary>
     /// Met à jour une compagnie aérienne existante.
     /// </summary>
-    /// <param name="airline">Données mises à jour de la compagnie aérienne, incluant son identifiant.</param>
-    /// <returns>La compagnie aérienne mise à jour.</returns>
     [HttpPut]
     [Authorize(Roles = "Admin")]
     [EndpointName("UpdateAirline")]
     [EndpointSummary("Mettre à jour une compagnie aérienne")]
     [EndpointDescription("Met à jour une compagnie aérienne existante à partir des données fournies. Endpoint réservé aux administrateurs.")]
-    [ProducesResponseType(typeof(Airline), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AirlineDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Airline>> Put([FromBody] AirlineDto airline)
+    public async Task<ActionResult<AirlineDto>> Put([FromBody] AirlineDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -147,7 +139,7 @@ public class AirlinesController : ParentController
             });
         }
 
-        var item = await _airlineRepository.GetByIdAsync(airline.Id);
+        var item = await _repository.GetByIdAsync(dto.Id);
 
         if (item is null)
         {
@@ -155,17 +147,17 @@ public class AirlinesController : ParentController
             {
                 StatusCode = StatusCodes.Status404NotFound,
                 Message = "Compagnie aérienne introuvable.",
-                Detail = $"Aucune compagnie aérienne n'a été trouvée avec l'identifiant {airline.Id}.",
+                Detail = $"Aucune compagnie aérienne n'a été trouvée avec l'identifiant {dto.Id}.",
                 TraceId = HttpContext.TraceIdentifier
             });
         }
 
         try
         {
-            item.Copy(airline);
-            await _airlineRepository.Update(item);
+            item.UpdateEntity(dto);
+            await _repository.Update(item);
 
-            return Ok(item);
+            return Ok(item.ToDto());
         }
         catch (Exception ex)
         {
@@ -180,10 +172,8 @@ public class AirlinesController : ParentController
     }
 
     /// <summary>
-    /// Supprime définitivement une compagnie aérienne à partir de son identifiant.
+    /// Supprime définitivement une compagnie aérienne.
     /// </summary>
-    /// <param name="id">Identifiant unique de la compagnie aérienne à supprimer.</param>
-    /// <returns>Une réponse vide si la suppression réussit.</returns>
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
     [EndpointName("DeleteAirline")]
@@ -194,7 +184,7 @@ public class AirlinesController : ParentController
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> Delete([FromRoute] int id)
     {
-        var item = await _airlineRepository.GetByIdAsync(id);
+        var item = await _repository.GetByIdAsync(id);
 
         if (item is null)
         {
@@ -209,7 +199,7 @@ public class AirlinesController : ParentController
 
         try
         {
-            await _airlineRepository.DeleteAsync(id);
+            await _repository.DeleteAsync(id);
             return NoContent();
         }
         catch (Exception ex)

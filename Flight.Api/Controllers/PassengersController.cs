@@ -1,4 +1,6 @@
+using Asp.Versioning;
 using Flight.Api.Models;
+using Flight.Application.DTOs;
 using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Interfaces;
@@ -11,56 +13,39 @@ namespace Flight.Api.Controllers;
 /// Contrôleur responsable de la gestion des passagers.
 /// Il permet de consulter, créer, modifier et supprimer des passagers.
 /// </summary>
-/// <remarks>
-/// Les opérations de lecture sont accessibles librement.
-/// La création et la modification sont autorisées aux rôles <c>Admin</c> et <c>BasicUser</c>.
-/// La suppression est réservée aux administrateurs.
-/// </remarks>
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Produces("application/json")]
 public class PassengersController : ParentController
 {
     private readonly IGenericRepository<Passenger> _repository;
 
-    /// <summary>
-    /// Initialise une nouvelle instance du contrôleur des passagers.
-    /// </summary>
-    /// <param name="manager">Gestionnaire central des repositories injecté par l'application.</param>
     public PassengersController(IRepositoryManager manager) : base(manager)
     {
         _repository = Manager.Passenger;
     }
 
-    /// <summary>
-    /// Retourne la liste complète des passagers enregistrés.
-    /// </summary>
-    /// <returns>Une collection complète de passagers.</returns>
     [HttpGet]
     [AllowAnonymous]
     [EndpointName("GetAllPassengers")]
     [EndpointSummary("Lister tous les passagers")]
     [EndpointDescription("Retourne la liste complète des passagers enregistrés dans le système.")]
-    [ProducesResponseType(typeof(IEnumerable<Passenger>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<PassengerDto>), StatusCodes.Status200OK)]
     public override async Task<IActionResult> GetAll()
     {
         var items = await _repository.AllAsync();
-        return Ok(items);
+        return Ok(items.Select(x => x.ToDto()));
     }
 
-    /// <summary>
-    /// Retourne le détail d'un passager à partir de son identifiant.
-    /// </summary>
-    /// <param name="id">Identifiant unique du passager.</param>
-    /// <returns>Le passager correspondant si trouvé.</returns>
     [HttpGet("{id:int}")]
     [AllowAnonymous]
     [EndpointName("GetPassengerById")]
     [EndpointSummary("Obtenir un passager par identifiant")]
     [EndpointDescription("Recherche un passager à partir de son identifiant. Retourne 404 si aucun passager correspondant n'existe.")]
-    [ProducesResponseType(typeof(Passenger), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PassengerDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Passenger>> Get([FromRoute] int id)
+    public async Task<ActionResult<PassengerDto>> Get([FromRoute] int id)
     {
         var item = await _repository.GetByIdAsync(id);
 
@@ -75,22 +60,17 @@ public class PassengersController : ParentController
             });
         }
 
-        return Ok(item);
+        return Ok(item.ToDto());
     }
 
-    /// <summary>
-    /// Crée un nouveau passager.
-    /// </summary>
-    /// <param name="dto">Données du passager à créer.</param>
-    /// <returns>Le passager créé avec son identifiant généré.</returns>
     [HttpPost]
     [Authorize(Roles = "Admin,BasicUser")]
     [EndpointName("CreatePassenger")]
     [EndpointSummary("Créer un passager")]
     [EndpointDescription("Crée un nouveau passager à partir des données fournies. Endpoint autorisé aux rôles Admin et BasicUser.")]
-    [ProducesResponseType(typeof(Passenger), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(PassengerDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<Passenger>> Create([FromBody] PassengerDto dto)
+    public async Task<ActionResult<PassengerDto>> Create([FromBody] PassengerDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -105,10 +85,10 @@ public class PassengersController : ParentController
 
         try
         {
-            var entity = new Passenger(dto);
+            var entity = dto.ToEntity();
             await _repository.AddAsync(entity);
 
-            return CreatedAtAction(nameof(Get), new { id = entity.Id }, entity);
+            return CreatedAtAction(nameof(Get), new { version = "1.0", id = entity.Id }, entity.ToDto());
         }
         catch (Exception ex)
         {
@@ -122,20 +102,15 @@ public class PassengersController : ParentController
         }
     }
 
-    /// <summary>
-    /// Met à jour un passager existant.
-    /// </summary>
-    /// <param name="dto">Données mises à jour du passager, incluant son identifiant.</param>
-    /// <returns>Le passager mis à jour.</returns>
     [HttpPut]
     [Authorize(Roles = "Admin,BasicUser")]
     [EndpointName("UpdatePassenger")]
     [EndpointSummary("Mettre à jour un passager")]
     [EndpointDescription("Met à jour un passager existant à partir des données fournies. Endpoint autorisé aux rôles Admin et BasicUser.")]
-    [ProducesResponseType(typeof(Passenger), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PassengerDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Passenger>> Put([FromBody] PassengerDto dto)
+    public async Task<ActionResult<PassengerDto>> Put([FromBody] PassengerDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -163,10 +138,10 @@ public class PassengersController : ParentController
 
         try
         {
-            item.Copy(dto);
+            item.UpdateEntity(dto);
             await _repository.Update(item);
 
-            return Ok(item);
+            return Ok(item.ToDto());
         }
         catch (Exception ex)
         {
@@ -180,11 +155,6 @@ public class PassengersController : ParentController
         }
     }
 
-    /// <summary>
-    /// Supprime définitivement un passager à partir de son identifiant.
-    /// </summary>
-    /// <param name="id">Identifiant unique du passager à supprimer.</param>
-    /// <returns>Une réponse vide si la suppression réussit.</returns>
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
     [EndpointName("DeletePassenger")]

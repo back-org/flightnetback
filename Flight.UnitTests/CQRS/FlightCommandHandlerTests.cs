@@ -1,5 +1,5 @@
 using Flight.Application.CQRS.Commands.Flights;
-using Flight.Domain.Entities;
+using Flight.Application.DTOs;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Interfaces;
 using FluentAssertions;
@@ -13,10 +13,15 @@ namespace Flight.UnitTests.CQRS;
 /// </summary>
 public class FlightCommandHandlerTests
 {
-    private static Domain.Entities.Flight MakeFlight(int id = 1) => new(new FlightDto(
+    private static Domain.Entities.Flight MakeFlight(int id = 1) =>
+    new FlightDto(
         id, "AF001",
-        DateTime.UtcNow.AddHours(2), DateTime.UtcNow.AddHours(5),
-        20, 150, 500f, 150f, 2, 1));
+        DateTime.UtcNow.AddHours(2),
+        DateTime.UtcNow.AddHours(5),
+        20, 150,
+        500f, 150f,
+        2, 1
+    ).ToEntity();
 
     private static FlightDto MakeDto(int id = 0) => new(
         id, "AF001",

@@ -1,4 +1,4 @@
-
+using Flight.Application.DTOs;
 using Flight.Domain.Entities;
 using Flight.Infrastructure.Interfaces;
 using MediatR;
@@ -23,7 +23,9 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
 
     public async Task<BookingDto> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
     {
-        var entity = new Booking(request.Dto);
+        // Conversion DTO → Entity
+        var entity = request.Dto.ToEntity();
+
         await _manager.Booking.AddAsync(entity);
 
         await _audit.RecordAsync(
@@ -34,6 +36,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             performedBy: request.PerformedBy,
             cancellationToken: cancellationToken);
 
+        // Conversion Entity → DTO
         return entity.ToDto();
     }
 }

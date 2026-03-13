@@ -6,43 +6,10 @@ using Newtonsoft.Json;
 namespace Flight.Domain.Entities;
 
 /// <summary>
-/// Extensions de mapping pour l'entité <see cref="Booking"/>.
-/// </summary>
-public static class BookingExtensions
-{
-    /// <summary>
-    /// Convertit une entité <see cref="Booking"/> en <see cref="BookingDto"/>.
-    /// </summary>
-    /// <param name="booking">L'entité réservation à convertir.</param>
-    /// <returns>Le DTO correspondant.</returns>
-    public static BookingDto ToDto(this Booking booking)
-    {
-        return new BookingDto(
-            booking.Id,
-            booking.FlightType,
-            booking.FlightId,
-            booking.PassengerId,
-            booking.Statut);
-    }
-}
-
-/// <summary>
-/// Objet de transfert de données (DTO) pour une réservation.
-/// Utilisé pour les opérations de création et mise à jour via l'API.
-/// </summary>
-/// <param name="Id">Identifiant de la réservation (0 pour une création).</param>
-/// <param name="FlightType">Classe de confort choisie.</param>
-/// <param name="FlightId">Identifiant du vol concerné.</param>
-/// <param name="PassengerId">Identifiant du passager concerné.</param>
-/// <param name="Statut">Statut actuel de la réservation.</param>
-public record BookingDto(int Id, Confort FlightType, int FlightId, int PassengerId, Statut Statut);
-
-/// <summary>
-/// Représente une réservation de vol dans le système.
-/// Associe un passager à un vol avec une classe de confort et un statut.
+/// Représente une réservation effectuée par un passager pour un vol donné.
 /// </summary>
 [Table("Bookings")]
-public class Booking : DeleteEntity<int>
+public partial class Booking : DeleteEntity<int>
 {
     /// <summary>
     /// Initialise une nouvelle instance vide de <see cref="Booking"/>.
@@ -50,68 +17,53 @@ public class Booking : DeleteEntity<int>
     public Booking()
     {
     }
+    
 
     /// <summary>
-    /// Initialise une nouvelle instance de <see cref="Booking"/> à partir d'un DTO.
+    /// Initialise une nouvelle instance de <see cref="Booking"/> avec les valeurs fournies.
     /// </summary>
-    /// <param name="dto">Le DTO contenant les données de la réservation.</param>
-    public Booking(BookingDto dto)
+    /// <param name="id">Identifiant unique de la réservation.</param>
+    /// <param name="flightType">Classe de confort réservée.</param>
+    /// <param name="flightId">Identifiant du vol réservé.</param>
+    /// <param name="passengerId">Identifiant du passager concerné.</param>
+    /// <param name="statut">Statut actuel de la réservation.</param>
+    public Booking(int id, Confort flightType, int flightId, int passengerId, Statut statut)
     {
-        Copy(dto);
+        Id = id;
+        FlightType = flightType;
+        FlightId = flightId;
+        PassengerId = passengerId;
+        Statut = statut;
     }
 
     /// <summary>
-    /// Classe de confort choisie par le passager (Économique, Affaires, etc.).
+    /// Obtient ou définit la classe de confort réservée.
     /// </summary>
     [Column("flight_type")]
-    [JsonProperty(PropertyName = "flight_type")]
+    [JsonProperty(PropertyName = "flightType")]
     public Confort FlightType { get; set; } = Confort.Economy;
 
     /// <summary>
-    /// Identifiant du vol associé à cette réservation (clé étrangère vers <see cref="Flight"/>).
+    /// Obtient ou définit l'identifiant du vol associé à la réservation.
     /// </summary>
-    [Required(ErrorMessage = "L'identifiant du vol est requis.")]
+    [Required(ErrorMessage = "Le vol est requis.")]
     [Column("flight_id")]
-    [JsonProperty(PropertyName = "flight_id")]
+    [JsonProperty(PropertyName = "flightId")]
     public int FlightId { get; set; }
 
     /// <summary>
-    /// Navigation vers l'entité <see cref="Flight"/> associée.
+    /// Obtient ou définit l'identifiant du passager associé à la réservation.
     /// </summary>
-    [ForeignKey(nameof(FlightId))]
-    public virtual Flight? Plane { get; set; }
-
-    /// <summary>
-    /// Identifiant du passager ayant effectué la réservation (clé étrangère vers <see cref="Passenger"/>).
-    /// </summary>
-    [Required(ErrorMessage = "L'identifiant du passager est requis.")]
+    [Required(ErrorMessage = "Le passager est requis.")]
     [Column("passenger_id")]
-    [JsonProperty(PropertyName = "passenger_id")]
+    [JsonProperty(PropertyName = "passengerId")]
     public int PassengerId { get; set; }
 
     /// <summary>
-    /// Navigation vers l'entité <see cref="Passenger"/> associée.
+    /// Obtient ou définit le statut actuel de la réservation.
     /// </summary>
-    [ForeignKey(nameof(PassengerId))]
-    public virtual Passenger? Passenger { get; set; }
-
-    /// <summary>
-    /// Statut actuel de la réservation (En attente, Confirmée, Annulée).
-    /// </summary>
-    [Column("state")]
-    [JsonProperty(PropertyName = "state")]
+    [Column("statut")]
+    [JsonProperty(PropertyName = "statut")]
     public Statut Statut { get; set; } = Statut.Pending;
-
-    /// <summary>
-    /// Copie les valeurs d'un <see cref="BookingDto"/> dans cette entité.
-    /// </summary>
-    /// <param name="dto">Le DTO source contenant les nouvelles valeurs.</param>
-    public void Copy(BookingDto dto)
-    {
-        Id = dto.Id > 0 ? dto.Id : 0;
-        FlightType = dto.FlightType;
-        FlightId = dto.FlightId;
-        PassengerId = dto.PassengerId;
-        Statut = dto.Statut;
-    }
+   
 }

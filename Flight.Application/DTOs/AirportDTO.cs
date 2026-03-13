@@ -1,32 +1,32 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Flight.Domain.Core.Abstracts;
-using Newtonsoft.Json;
+﻿using System.ComponentModel.DataAnnotations;
+using Flight.Domain.Entities;
 
-namespace Flight.Domain.Entities;
+namespace Flight.Application.DTOs;
 
 /// <summary>
-/// Représente un aéroport dans le système.
+/// Représente les données transférées pour un aéroport.
+/// Ce DTO est utilisé pour la lecture, la création et la mise à jour
+/// des aéroports via l'API.
 /// </summary>
-[Table("Airports")]
-public partial class Airport : DeleteEntity<int>
+public class AirportDto
 {
     /// <summary>
-    /// Initialise une nouvelle instance vide de <see cref="Airport"/>.
+    /// Initialise une nouvelle instance vide de <see cref="AirportDto"/>.
+    /// Ce constructeur est nécessaire pour la sérialisation et la désérialisation JSON.
     /// </summary>
-    public Airport()
+    public AirportDto()
     {
     }
 
     /// <summary>
-    /// Initialise une nouvelle instance de <see cref="Airport"/> avec les valeurs fournies.
+    /// Initialise une nouvelle instance de <see cref="AirportDto"/> avec les valeurs fournies.
     /// </summary>
     /// <param name="id">Identifiant unique de l'aéroport.</param>
     /// <param name="name">Nom officiel de l'aéroport.</param>
     /// <param name="cityId">Identifiant de la ville associée à l'aéroport.</param>
     /// <param name="state">État opérationnel de l'aéroport.</param>
     /// <param name="deletedFlag">Indicateur de suppression logique.</param>
-    public Airport(int id, string name, int cityId, State state, int deletedFlag)
+    public AirportDto(int id, string name, int cityId, State state, int deletedFlag)
     {
         Id = id;
         Name = name;
@@ -36,32 +36,30 @@ public partial class Airport : DeleteEntity<int>
     }
 
     /// <summary>
+    /// Obtient ou définit l'identifiant unique de l'aéroport.
+    /// </summary>
+    public int Id { get; set; }
+
+    /// <summary>
     /// Obtient ou définit le nom officiel de l'aéroport.
     /// </summary>
     [Required(ErrorMessage = "Le nom de l'aéroport est requis.")]
     [MaxLength(30, ErrorMessage = "Le nom de l'aéroport ne peut pas dépasser 30 caractères.")]
-    [Column("name")]
-    [JsonProperty(PropertyName = "name")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// Obtient ou définit l'identifiant de la ville associée à l'aéroport.
     /// </summary>
-    [Column("city_id")]
-    [JsonProperty(PropertyName = "cityId")]
+    [Range(1, int.MaxValue, ErrorMessage = "L'identifiant de la ville doit être supérieur à 0.")]
     public int CityId { get; set; }
 
     /// <summary>
     /// Obtient ou définit l'état opérationnel de l'aéroport.
     /// </summary>
-    [Column("state")]
-    [JsonProperty(PropertyName = "state")]
     public State State { get; set; } = State.Active;
 
     /// <summary>
     /// Obtient ou définit l'indicateur de suppression logique.
     /// </summary>
-    [Column("flag")]
-    [JsonProperty(PropertyName = "flag")]
     public int DeletedFlag { get; set; }
 }

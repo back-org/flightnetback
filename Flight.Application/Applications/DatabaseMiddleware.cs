@@ -6,47 +6,57 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Flight.Application.Applications;
 
 /// <summary>
-/// Middleware d'extension pour la configuration de la base de données.
-/// Enregistre le contexte Entity Framework <see cref="FlightContext"/> dans le conteneur DI.
+/// Middleware d'extension permettant d'enregistrer le contexte
+/// Entity Framework dans le conteneur d'injection de dépendances.
 /// </summary>
 public static class DatabaseMiddleware
 {
     /// <summary>
-    /// Configure et enregistre le <see cref="FlightContext"/> en utilisant la chaîne de connexion
-    /// spécifiée dans la configuration de l'application (clé <c>ConnectionStrings:DbConn</c>).
+    /// Configure et enregistre le <see cref="FlightContext"/> en utilisant
+    /// la chaîne de connexion provenant soit :
+    /// 
+    /// 1. du fichier .env (DB_CONNECTION_STRING)
+    /// 2. de la configuration appsettings.json
+    /// 3. des variables d'environnement système
     /// </summary>
-    /// <param name="services">Le conteneur de services DI.</param>
-    /// <param name="configuration">La configuration de l'application (appsettings.json, variables d'environnement, etc.).</param>
+    /// <param name="services">Conteneur DI.</param>
+    /// <param name="configuration">Configuration ASP.NET.</param>
     /// <exception cref="InvalidOperationException">
-    /// Levée si la chaîne de connexion <c>DbConn</c> est absente ou vide.
+    /// Levée si aucune chaîne de connexion n'est trouvée.
     /// </exception>
-    public static void AddDataContext(this IServiceCollection services, IConfiguration configuration)
+    public static void AddDataContext(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        var connString = configuration.GetConnectionString("DbConn")
-            ?? throw new InvalidOperationException(
-                "La chaîne de connexion 'DbConn' est manquante dans la configuration.");
+        // 1️⃣ Priorité au fichier .env
+        var envConn = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
 
-        services.AddDbContext<FlightContext>(opt =>
-            opt.UseMySql(connString, ServerVersion.AutoDetect(connString)));
-    }
+        // 2️⃣ fallback appsettings.json
+        var configConn = configuration.GetConnectionString("DbConn");
 
-    /// <summary>
-    /// Configure et enregistre le <see cref="FlightContext"/> en lisant la chaîne de connexion
-    /// depuis la variable d'environnement <c>DB_CONNECTION_STRING</c>.
-    /// Si la variable n'est pas définie, une exception est levée.
-    /// </summary>
-    /// <param name="services">Le conteneur de services DI.</param>
-    /// <exception cref="InvalidOperationException">
-    /// Levée si la variable d'environnement <c>DB_CONNECTION_STRING</c> n'est pas définie.
-    /// </exception>
-    public static void AddDataContext(this IServiceCollection services)
-    {
-        var connString = System.Environment.GetEnvironmentVariable("DB_CONNECTION_STRING")
-            ?? throw new InvalidOperationException(
-                "La variable d'environnement 'DB_CONNECTION_STRING' n'est pas définie. " +
-                "Exemple : server=127.0.0.1;port=3306;user=root;password=secret;database=flights");
+        var connString = envConn ?? configConn;
 
-        services.AddDbContext<FlightContext>(opt =>
-            opt.UseMySql(connString, ServerVersion.AutoDetect(connString)));
+        if (string.IsNullOrWhiteSpace(connString))
+        {
+            throw new InvalidOperationException(
+                """
+                Aucune chaîne de connexion trouvée.
+
+                Vérifiez :
+                - le fichier .env (DB_CONNECTION_STRING)
+                - appsettings.json (ConnectionStrings:DbConn)
+
+                Exemple .env :
+                DB_CONNECTION_STRING=server=127.0.0.1;port=3306;user=root;password=secret;database=flights
+                """
+            );
+        }
+
+        services.AddDbContext<FlightContext>(options =>
+            options.UseMySql(
+                connString,
+                ServerVersion.AutoDetect(connString)
+            )
+        );
     }
 }

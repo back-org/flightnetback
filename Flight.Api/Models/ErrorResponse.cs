@@ -1,7 +1,7 @@
 ﻿namespace Flight.Api.Models;
 
 /// <summary>
-/// Représente un message d'erreur standard retourné par l'API.
+/// Représente un format standard d'erreur retourné par l'API.
 /// </summary>
 public sealed class ErrorResponse
 {
@@ -11,17 +11,17 @@ public sealed class ErrorResponse
     public int StatusCode { get; set; }
 
     /// <summary>
-    /// Message lisible décrivant l'erreur.
+    /// Message principal décrivant l'erreur.
     /// </summary>
     public string Message { get; set; } = string.Empty;
 
     /// <summary>
-    /// Détail technique complémentaire, si disponible.
+    /// Détail complémentaire utile au diagnostic.
     /// </summary>
     public string? Detail { get; set; }
 
     /// <summary>
-    /// Identifiant de corrélation ou de trace de la requête.
+    /// Identifiant de traçabilité de la requête.
     /// </summary>
     public string? TraceId { get; set; }
 }

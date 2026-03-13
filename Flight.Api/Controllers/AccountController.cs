@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
+using Asp.Versioning;
 using Flight.Api.Models;
 using Flight.Application.Applications;
 using Flight.Infrastructure.Auth;
@@ -17,16 +18,9 @@ namespace Flight.Api.Controllers;
 /// Contrôleur responsable de l'authentification, de la gestion des tokens JWT,
 /// de la récupération de l'utilisateur courant et de l'impersonation.
 /// </summary>
-/// <remarks>
-/// Ce contrôleur expose les endpoints liés à :
-/// - la connexion utilisateur,
-/// - la déconnexion,
-/// - le renouvellement de token,
-/// - la consultation du profil courant,
-/// - l'impersonation administrateur.
-/// </remarks>
 [ApiController]
 [Authorize]
+[ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
 [Produces("application/json")]
 public class AccountController(
@@ -37,13 +31,10 @@ public class AccountController(
     : ControllerBase
 {
     /// <summary>
-    /// Authentifie un utilisateur et retourne un couple access token / refresh token.
+    /// Authentifie un utilisateur et retourne un access token ainsi qu'un refresh token.
     /// </summary>
     /// <param name="request">Informations d'identification de l'utilisateur.</param>
-    /// <returns>
-    /// Une réponse contenant les informations de session de l'utilisateur,
-    /// y compris le JWT d'accès et le refresh token.
-    /// </returns>
+    /// <returns>Informations de session de l'utilisateur connecté.</returns>
     [AllowAnonymous]
     [HttpPost("login")]
     [EnableRateLimiting("auth")]
@@ -113,12 +104,8 @@ public class AccountController(
     /// <summary>
     /// Retourne les informations de l'utilisateur authentifié courant.
     /// </summary>
-    /// <returns>
-    /// Les informations de l'utilisateur connecté, y compris son rôle
-    /// et éventuellement l'utilisateur d'origine en cas d'impersonation.
-    /// </returns>
+    /// <returns>Informations de l'utilisateur connecté.</returns>
     [HttpGet("user")]
-    [Authorize]
     [EndpointName("GetCurrentUser")]
     [EndpointSummary("Obtenir l'utilisateur courant")]
     [EndpointDescription("Retourne les informations de l'utilisateur authentifié courant à partir des claims JWT.")]
@@ -136,9 +123,8 @@ public class AccountController(
     /// <summary>
     /// Déconnecte l'utilisateur courant en invalidant son refresh token.
     /// </summary>
-    /// <returns>Un message confirmant la déconnexion.</returns>
+    /// <returns>Message confirmant la déconnexion.</returns>
     [HttpPost("logout")]
-    [Authorize]
     [EndpointName("Logout")]
     [EndpointSummary("Déconnecter l'utilisateur")]
     [EndpointDescription("Invalide le refresh token de l'utilisateur connecté et enregistre une trace d'audit.")]
@@ -165,12 +151,9 @@ public class AccountController(
     /// <summary>
     /// Renouvelle le token d'accès JWT à partir d'un refresh token valide.
     /// </summary>
-    /// <param name="request">Le refresh token transmis par le client.</param>
-    /// <returns>
-    /// Un nouvel access token JWT et un nouveau refresh token.
-    /// </returns>
+    /// <param name="request">Refresh token transmis par le client.</param>
+    /// <returns>Nouveaux tokens d'accès et de rafraîchissement.</returns>
     [HttpPost("refresh-token")]
-    [Authorize]
     [EndpointName("RefreshToken")]
     [EndpointSummary("Renouveler le token JWT")]
     [EndpointDescription("Renouvelle le token d'accès JWT à l'aide d'un refresh token encore valide.")]
@@ -194,10 +177,7 @@ public class AccountController(
             }
 
             var accessToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
-            var jwtResult = jwtAuthManager.Refresh(
-                request.RefreshToken,
-                accessToken ?? string.Empty,
-                DateTime.Now);
+            var jwtResult = jwtAuthManager.Refresh(request.RefreshToken, accessToken ?? string.Empty, DateTime.Now);
 
             logger.LogInformation("Utilisateur [{UserName}] a renouvelé son token.", userName);
 
@@ -224,10 +204,8 @@ public class AccountController(
     /// <summary>
     /// Permet à un administrateur d'usurper temporairement l'identité d'un autre utilisateur.
     /// </summary>
-    /// <param name="request">Nom d'utilisateur de la cible à impersoner.</param>
-    /// <returns>
-    /// Un nouveau couple de tokens correspondant à l'utilisateur impersoné.
-    /// </returns>
+    /// <param name="request">Nom d'utilisateur cible de l'impersonation.</param>
+    /// <returns>Nouveaux tokens associés à l'utilisateur impersoné.</returns>
     [HttpPost("impersonation")]
     [Authorize(Roles = "Admin")]
     [EndpointName("ImpersonateUser")]
@@ -288,13 +266,10 @@ public class AccountController(
     }
 
     /// <summary>
-    /// Arrête l'impersonation en cours et restaure l'identité originale de l'administrateur.
+    /// Arrête l'impersonation en cours et restaure l'identité originale.
     /// </summary>
-    /// <returns>
-    /// Un nouveau couple de tokens JWT correspondant à l'utilisateur initial.
-    /// </returns>
+    /// <returns>Nouveaux tokens associés à l'utilisateur d'origine.</returns>
     [HttpPost("stop-impersonation")]
-    [Authorize]
     [EndpointName("StopImpersonation")]
     [EndpointSummary("Arrêter l'impersonation")]
     [EndpointDescription("Met fin à l'impersonation en cours et restaure l'identité initiale de l'utilisateur d'origine.")]

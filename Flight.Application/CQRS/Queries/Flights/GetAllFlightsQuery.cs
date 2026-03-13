@@ -1,3 +1,4 @@
+using Flight.Application.DTOs;
 using Flight.Domain.Entities;
 using Flight.Infrastructure.Interfaces;
 using MediatR;
