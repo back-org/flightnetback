@@ -6,8 +6,13 @@ namespace Flight.Application.CQRS.Commands.Flights;
 /// <summary>
 /// Commande MediatR pour la suppression d'un vol.
 /// </summary>
-public record DeleteFlightCommand(int Id) : IRequest<bool>;
+/// <param name="Id">Identifiant du vol à supprimer.</param>
+/// <param name="PerformedBy">Utilisateur ayant déclenché l'action.</param>
+public record DeleteFlightCommand(int Id, string PerformedBy) : IRequest<bool>;
 
+/// <summary>
+/// Handler pour la commande de suppression de vol.
+/// </summary>
 public class DeleteFlightCommandHandler : IRequestHandler<DeleteFlightCommand, bool>
 {
     private readonly IRepositoryManager _manager;
@@ -22,15 +27,20 @@ public class DeleteFlightCommandHandler : IRequestHandler<DeleteFlightCommand, b
     public async Task<bool> Handle(DeleteFlightCommand request, CancellationToken cancellationToken)
     {
         var existing = await _manager.Flight.GetByIdAsync(request.Id);
-        if (existing is null) return false;
 
-        await _manager.Flight.Delete(existing);
+        if (existing is null)
+        {
+            return false;
+        }
+
+        await _manager.Flight.DeleteAsync(request.Id);
 
         await _audit.RecordAsync(
             action: "DELETE",
             entityName: "Flight",
             entityId: request.Id.ToString(),
             details: $"Vol supprimé: {existing.Code}",
+            performedBy: request.PerformedBy,
             cancellationToken: cancellationToken);
 
         return true;

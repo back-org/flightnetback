@@ -1,38 +1,80 @@
-using Flight.Infrastructure.Interfaces;
+using Flight.Api.Models;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Flight.Api.Controllers;
 
 /// <summary>
 /// Contrôleur de base utilisé par les contrôleurs métier.
-/// Il centralise l'accès au gestionnaire de repositories partagé par l'application.
+/// Il centralise l'accès au médiateur MediatR ainsi que les réponses d'erreur standardisées.
 /// </summary>
 [ApiController]
 [Produces("application/json")]
 public abstract class ParentController : ControllerBase
 {
     /// <summary>
-    /// Obtient le gestionnaire central des repositories métier.
+    /// Obtient le médiateur chargé d'exécuter les commandes et requêtes CQRS.
     /// </summary>
-    protected IRepositoryManager Manager { get; }
+    protected IMediator Mediator { get; }
 
     /// <summary>
     /// Initialise une nouvelle instance du contrôleur parent.
     /// </summary>
-    /// <param name="manager">Gestionnaire de repositories injecté par le conteneur de dépendances.</param>
-    protected ParentController(IRepositoryManager manager)
+    /// <param name="mediator">Médiateur injecté par le conteneur de dépendances.</param>
+    protected ParentController(IMediator mediator)
     {
-        Manager = manager;
+        Mediator = mediator;
     }
 
     /// <summary>
-    /// Retourne la liste complète des éléments gérés par le contrôleur enfant.
-    /// Cette méthode est redéfinie dans chaque contrôleur spécialisé.
+    /// Construit une réponse HTTP 404 standardisée.
     /// </summary>
-    /// <returns>Une réponse HTTP contenant la collection demandée.</returns>
-    [HttpGet]
-    public virtual Task<IActionResult> GetAll()
+    /// <param name="message">Message principal de l'erreur.</param>
+    /// <param name="detail">Détail complémentaire de l'erreur.</param>
+    /// <returns>Réponse HTTP 404 standardisée.</returns>
+    protected NotFoundObjectResult NotFoundResponse(string message, string detail)
     {
-        return Task.FromResult<IActionResult>(Ok());
+        return NotFound(new ErrorResponse
+        {
+            StatusCode = StatusCodes.Status404NotFound,
+            Message = message,
+            Detail = detail,
+            TraceId = HttpContext.TraceIdentifier
+        });
+    }
+
+    /// <summary>
+    /// Construit une réponse HTTP 400 standardisée.
+    /// </summary>
+    /// <param name="message">Message principal de l'erreur.</param>
+    /// <param name="detail">Détail complémentaire de l'erreur.</param>
+    /// <returns>Réponse HTTP 400 standardisée.</returns>
+    protected BadRequestObjectResult BadRequestResponse(string message, string detail)
+    {
+        return BadRequest(new ErrorResponse
+        {
+            StatusCode = StatusCodes.Status400BadRequest,
+            Message = message,
+            Detail = detail,
+            TraceId = HttpContext.TraceIdentifier
+        });
+    }
+
+    /// <summary>
+    /// Vérifie si le modèle courant est invalide et retourne une réponse HTTP 400 standardisée.
+    /// </summary>
+    /// <returns>
+    /// Une réponse HTTP 400 si le modèle est invalide ; sinon <c>null</c>.
+    /// </returns>
+    protected ActionResult? ValidateModel()
+    {
+        if (ModelState.IsValid)
+        {
+            return null;
+        }
+
+        return BadRequestResponse(
+            "Le modèle envoyé est invalide.",
+            "Vérifiez les champs obligatoires et les contraintes de validation.");
     }
 }

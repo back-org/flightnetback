@@ -1,8 +1,9 @@
 using Asp.Versioning;
 using Flight.Api.Models;
+using Flight.Application.CQRS.Commands.Flights;
+using Flight.Application.CQRS.Queries.Flights;
 using Flight.Application.DTOs;
-using Flight.Domain.Entities;
-using Flight.Infrastructure.Interfaces;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,17 +13,16 @@ namespace Flight.Api.Controllers;
 /// Contrôleur responsable de la gestion des vols.
 /// Il permet de consulter, créer, modifier et supprimer des vols.
 /// </summary>
-[ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-[Produces("application/json")]
 public class FlightsController : ParentController
 {
-    private readonly Flight.Domain.Interfaces.IGenericRepository<Flight.Domain.Entities.Flight> _repository;
-
-    public FlightsController(IRepositoryManager manager) : base(manager)
+    /// <summary>
+    /// Initialise une nouvelle instance du contrôleur des vols.
+    /// </summary>
+    /// <param name="mediator">Médiateur chargé d'exécuter les commandes et requêtes.</param>
+    public FlightsController(IMediator mediator) : base(mediator)
     {
-        _repository = Manager.Flight;
     }
 
     [HttpGet]
@@ -31,10 +31,10 @@ public class FlightsController : ParentController
     [EndpointSummary("Lister tous les vols")]
     [EndpointDescription("Retourne la liste complète des vols enregistrés dans le système.")]
     [ProducesResponseType(typeof(IEnumerable<FlightDto>), StatusCodes.Status200OK)]
-    public override async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll()
     {
-        var items = await _repository.AllAsync();
-        return Ok(items.Select(x => x.ToDto()));
+        var result = await Mediator.Send(new GetAllFlightsQuery());
+        return Ok(result);
     }
 
     [HttpGet("{id:int}")]
@@ -46,20 +46,16 @@ public class FlightsController : ParentController
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<FlightDto>> Get([FromRoute] int id)
     {
-        var item = await _repository.GetByIdAsync(id);
+        var result = await Mediator.Send(new GetFlightByIdQuery(id));
 
-        if (item is null)
+        if (result is null)
         {
-            return NotFound(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status404NotFound,
-                Message = "Vol introuvable.",
-                Detail = $"Aucun vol n'a été trouvé avec l'identifiant {id}.",
-                TraceId = HttpContext.TraceIdentifier
-            });
+            return NotFoundResponse(
+                "Vol introuvable.",
+                $"Aucun vol n'a été trouvé avec l'identifiant {id}.");
         }
 
-        return Ok(item.ToDto());
+        return Ok(result);
     }
 
     [HttpPost]
@@ -71,34 +67,16 @@ public class FlightsController : ParentController
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<FlightDto>> Create([FromBody] FlightDto dto)
     {
-        if (!ModelState.IsValid)
+        var validation = ValidateModel();
+        if (validation is not null)
         {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Le modèle envoyé est invalide.",
-                Detail = "Vérifiez les champs obligatoires et les règles de validation.",
-                TraceId = HttpContext.TraceIdentifier
-            });
+            return validation;
         }
 
-        try
-        {
-            var entity = dto.ToEntity();
-            await _repository.AddAsync(entity);
+        var result = await Mediator.Send(
+            new CreateFlightCommand(dto, User.Identity?.Name ?? "system"));
 
-            return CreatedAtAction(nameof(Get), new { version = "1.0", id = entity.Id }, entity.ToDto());
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "La création du vol a échoué.",
-                Detail = ex.InnerException?.Message ?? ex.Message,
-                TraceId = HttpContext.TraceIdentifier
-            });
-        }
+        return CreatedAtAction(nameof(Get), new { version = "1.0", id = result.Id }, result);
     }
 
     [HttpPut]
@@ -111,47 +89,23 @@ public class FlightsController : ParentController
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<FlightDto>> Put([FromBody] FlightDto dto)
     {
-        if (!ModelState.IsValid)
+        var validation = ValidateModel();
+        if (validation is not null)
         {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Le modèle envoyé est invalide.",
-                Detail = "Vérifiez les champs obligatoires et les règles de validation.",
-                TraceId = HttpContext.TraceIdentifier
-            });
+            return validation;
         }
 
-        var item = await _repository.GetByIdAsync(dto.Id);
+        var result = await Mediator.Send(
+            new UpdateFlightCommand(dto.Id, dto, User.Identity?.Name ?? "system"));
 
-        if (item is null)
+        if (result is null)
         {
-            return NotFound(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status404NotFound,
-                Message = "Vol introuvable.",
-                Detail = $"Aucun vol n'a été trouvé avec l'identifiant {dto.Id}.",
-                TraceId = HttpContext.TraceIdentifier
-            });
+            return NotFoundResponse(
+                "Vol introuvable.",
+                $"Aucun vol n'a été trouvé avec l'identifiant {dto.Id}.");
         }
 
-        try
-        {
-            item.UpdateEntity(dto);
-            await _repository.Update(item);
-
-            return Ok(item.ToDto());
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "La mise à jour du vol a échoué.",
-                Detail = ex.InnerException?.Message ?? ex.Message,
-                TraceId = HttpContext.TraceIdentifier
-            });
-        }
+        return Ok(result);
     }
 
     [HttpDelete("{id:int}")]
@@ -161,36 +115,18 @@ public class FlightsController : ParentController
     [EndpointDescription("Supprime un vol existant. Retourne 404 si l'identifiant n'existe pas.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> Delete([FromRoute] int id)
     {
-        var item = await _repository.GetByIdAsync(id);
+        var success = await Mediator.Send(
+            new DeleteFlightCommand(id, User.Identity?.Name ?? "system"));
 
-        if (item is null)
+        if (!success)
         {
-            return NotFound(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status404NotFound,
-                Message = "Vol introuvable.",
-                Detail = $"Aucun vol n'a été trouvé avec l'identifiant {id}.",
-                TraceId = HttpContext.TraceIdentifier
-            });
+            return NotFoundResponse(
+                "Vol introuvable.",
+                $"Aucun vol n'a été trouvé avec l'identifiant {id}.");
         }
 
-        try
-        {
-            await _repository.DeleteAsync(id);
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "La suppression du vol a échoué.",
-                Detail = ex.InnerException?.Message ?? ex.Message,
-                TraceId = HttpContext.TraceIdentifier
-            });
-        }
+        return NoContent();
     }
 }

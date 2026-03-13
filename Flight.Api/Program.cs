@@ -1,6 +1,9 @@
 using Asp.Versioning;
 using DotNetEnv;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Flight.Application.Applications;
+using Flight.Application.Validators;
 using Flight.Infrastructure.Auth;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json.Serialization;
@@ -40,6 +43,14 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
+
+// FluentValidation
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<FlightDtoValidator>();
+
+// MediatR
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(FlightDtoValidator).Assembly));
 
 // Routing / API Explorer
 builder.Services.AddEndpointsApiExplorer();
@@ -90,7 +101,7 @@ builder.Services.AddOpenApi("v1", options =>
     });
 });
 
-// Repositories
+// Repositories / services métier
 builder.Services.AddRepoService();
 
 // JWT
@@ -145,7 +156,8 @@ app.MapGet("/", () => Results.Ok(new
 {
     application = "FlightNet REST API",
     documentation = "/scalar",
-    openApi = "/openapi/v1.json"
+    openApi = "/openapi/v1.json",
+    version = "v1"
 }))
 .WithSummary("Point d'entrée de l'application")
 .WithDescription("Retourne les informations de base de l'application et les liens de documentation.");

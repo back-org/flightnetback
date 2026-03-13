@@ -1,9 +1,9 @@
 using Asp.Versioning;
 using Flight.Api.Models;
+using Flight.Application.CQRS.Commands.Passengers;
+using Flight.Application.CQRS.Queries.Passengers;
 using Flight.Application.DTOs;
-using Flight.Domain.Entities;
-using Flight.Domain.Interfaces;
-using Flight.Infrastructure.Interfaces;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,17 +13,16 @@ namespace Flight.Api.Controllers;
 /// Contrôleur responsable de la gestion des passagers.
 /// Il permet de consulter, créer, modifier et supprimer des passagers.
 /// </summary>
-[ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-[Produces("application/json")]
 public class PassengersController : ParentController
 {
-    private readonly IGenericRepository<Passenger> _repository;
-
-    public PassengersController(IRepositoryManager manager) : base(manager)
+    /// <summary>
+    /// Initialise une nouvelle instance du contrôleur des passagers.
+    /// </summary>
+    /// <param name="mediator">Médiateur chargé d'exécuter les commandes et requêtes.</param>
+    public PassengersController(IMediator mediator) : base(mediator)
     {
-        _repository = Manager.Passenger;
     }
 
     [HttpGet]
@@ -32,10 +31,10 @@ public class PassengersController : ParentController
     [EndpointSummary("Lister tous les passagers")]
     [EndpointDescription("Retourne la liste complète des passagers enregistrés dans le système.")]
     [ProducesResponseType(typeof(IEnumerable<PassengerDto>), StatusCodes.Status200OK)]
-    public override async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll()
     {
-        var items = await _repository.AllAsync();
-        return Ok(items.Select(x => x.ToDto()));
+        var result = await Mediator.Send(new GetAllPassengersQuery());
+        return Ok(result);
     }
 
     [HttpGet("{id:int}")]
@@ -47,20 +46,16 @@ public class PassengersController : ParentController
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PassengerDto>> Get([FromRoute] int id)
     {
-        var item = await _repository.GetByIdAsync(id);
+        var result = await Mediator.Send(new GetPassengerByIdQuery(id));
 
-        if (item is null)
+        if (result is null)
         {
-            return NotFound(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status404NotFound,
-                Message = "Passager introuvable.",
-                Detail = $"Aucun passager n'a été trouvé avec l'identifiant {id}.",
-                TraceId = HttpContext.TraceIdentifier
-            });
+            return NotFoundResponse(
+                "Passager introuvable.",
+                $"Aucun passager n'a été trouvé avec l'identifiant {id}.");
         }
 
-        return Ok(item.ToDto());
+        return Ok(result);
     }
 
     [HttpPost]
@@ -72,34 +67,16 @@ public class PassengersController : ParentController
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PassengerDto>> Create([FromBody] PassengerDto dto)
     {
-        if (!ModelState.IsValid)
+        var validation = ValidateModel();
+        if (validation is not null)
         {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Le modèle envoyé est invalide.",
-                Detail = "Vérifiez les champs obligatoires et les contraintes de validation.",
-                TraceId = HttpContext.TraceIdentifier
-            });
+            return validation;
         }
 
-        try
-        {
-            var entity = dto.ToEntity();
-            await _repository.AddAsync(entity);
+        var result = await Mediator.Send(
+            new CreatePassengerCommand(dto, User.Identity?.Name ?? "system"));
 
-            return CreatedAtAction(nameof(Get), new { version = "1.0", id = entity.Id }, entity.ToDto());
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "La création du passager a échoué.",
-                Detail = ex.InnerException?.Message ?? ex.Message,
-                TraceId = HttpContext.TraceIdentifier
-            });
-        }
+        return CreatedAtAction(nameof(Get), new { version = "1.0", id = result.Id }, result);
     }
 
     [HttpPut]
@@ -112,47 +89,23 @@ public class PassengersController : ParentController
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PassengerDto>> Put([FromBody] PassengerDto dto)
     {
-        if (!ModelState.IsValid)
+        var validation = ValidateModel();
+        if (validation is not null)
         {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Le modèle envoyé est invalide.",
-                Detail = "Vérifiez les champs obligatoires et les contraintes de validation.",
-                TraceId = HttpContext.TraceIdentifier
-            });
+            return validation;
         }
 
-        var item = await _repository.GetByIdAsync(dto.Id);
+        var result = await Mediator.Send(
+            new UpdatePassengerCommand(dto.Id, dto, User.Identity?.Name ?? "system"));
 
-        if (item is null)
+        if (result is null)
         {
-            return NotFound(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status404NotFound,
-                Message = "Passager introuvable.",
-                Detail = $"Aucun passager n'a été trouvé avec l'identifiant {dto.Id}.",
-                TraceId = HttpContext.TraceIdentifier
-            });
+            return NotFoundResponse(
+                "Passager introuvable.",
+                $"Aucun passager n'a été trouvé avec l'identifiant {dto.Id}.");
         }
 
-        try
-        {
-            item.UpdateEntity(dto);
-            await _repository.Update(item);
-
-            return Ok(item.ToDto());
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "La mise à jour du passager a échoué.",
-                Detail = ex.InnerException?.Message ?? ex.Message,
-                TraceId = HttpContext.TraceIdentifier
-            });
-        }
+        return Ok(result);
     }
 
     [HttpDelete("{id:int}")]
@@ -162,36 +115,18 @@ public class PassengersController : ParentController
     [EndpointDescription("Supprime définitivement un passager existant. Endpoint réservé aux administrateurs.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> Delete([FromRoute] int id)
     {
-        var item = await _repository.GetByIdAsync(id);
+        var success = await Mediator.Send(
+            new DeletePassengerCommand(id, User.Identity?.Name ?? "system"));
 
-        if (item is null)
+        if (!success)
         {
-            return NotFound(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status404NotFound,
-                Message = "Passager introuvable.",
-                Detail = $"Aucun passager n'a été trouvé avec l'identifiant {id}.",
-                TraceId = HttpContext.TraceIdentifier
-            });
+            return NotFoundResponse(
+                "Passager introuvable.",
+                $"Aucun passager n'a été trouvé avec l'identifiant {id}.");
         }
 
-        try
-        {
-            await _repository.DeleteAsync(id);
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new ErrorResponse
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "La suppression du passager a échoué.",
-                Detail = ex.InnerException?.Message ?? ex.Message,
-                TraceId = HttpContext.TraceIdentifier
-            });
-        }
+        return NoContent();
     }
 }
