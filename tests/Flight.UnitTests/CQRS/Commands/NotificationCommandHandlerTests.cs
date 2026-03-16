@@ -5,205 +5,328 @@
 *
 * ROLE DU FICHIER
 * -----------------------------------------------------------------------------
-* Ce fichier contient les tests unitaires pour le NotificationCommandHandler.
+* Ce fichier contient les tests unitaires des handlers CQRS liés aux notifications.
 *
-* Le NotificationCommandHandler est responsable de :
-*    - recevoir une commande d'envoi de notification
-*    - appeler le service de notification
-*    - gérer les erreurs éventuelles
+* IMPORTANT
+* -----------------------------------------------------------------------------
+* Dans ce projet, il n'existe pas de :
+*   - SendNotificationCommand
+*   - NotificationCommandHandler
+*   - Flight.Application.Interfaces.INotificationService
 *
-* Les tests permettent de vérifier :
+* La logique réelle de notification repose sur :
+*   - CreateNotificationCommand / CreateNotificationCommandHandler
+*   - UpdateNotificationCommand / UpdateNotificationCommandHandler
+*   - DeleteNotificationCommand / DeleteNotificationCommandHandler
 *
-* 1. que la notification est envoyée correctement
-* 2. que le handler appelle bien le service de notification
-* 3. que les erreurs sont gérées correctement
+* Ces handlers dépendent de :
+*   - IRepositoryManager              (accès aux repositories)
+*   - IAuditTrailService              (journalisation / audit)
+*
+* Ce fichier est donc la version CORRECTE des tests, alignée sur le vrai code
+* source du projet.
+*
+* Scénarios couverts :
+* 1. Création d'une notification
+* 2. Mise à jour d'une notification existante
+* 3. Retour null si la notification à mettre à jour est introuvable
+* 4. Suppression d'une notification existante
+* 5. Retour false si la notification à supprimer est introuvable
 *
 * Technologies utilisées :
-*
-* - xUnit           : Framework de tests unitaires
-* - Moq             : Simulation (mock) des dépendances
-* - FluentAssertions: Assertions lisibles
-*
-* Pourquoi tester ce Handler ?
-*
-* Dans une architecture CQRS, les Handlers sont le coeur de la logique
-* applicative. Les tester garantit que les commandes exécutent bien
-* les actions attendues.
+*   - xUnit
+*   - Moq
+*   - FluentAssertions
 *
 ************************************************************************************/
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-using Xunit;
-using Moq;
-using FluentAssertions;
-
 using Flight.Application.CQRS.Commands.Notifications;
-using Flight.Application.Interfaces;
-using Flight.Domain.Entities;
+using Flight.Application.DTOs;
+using Flight.Domain.Interfaces;
+using Flight.Infrastructure.Interfaces;
+using FluentAssertions;
+using Moq;
+using Xunit;
+using NotificationEntity = Flight.Domain.Entities.Notification;
 
-namespace Flight.UnitTests.CQRS.Commands
+namespace Flight.UnitTests.CQRS.Commands;
+
+/// <summary>
+/// Tests unitaires des handlers CQRS de commande pour les notifications.
+/// </summary>
+public class NotificationCommandHandlerTests
 {
-    /***************************************************************************
-    * CLASSE : NotificationCommandHandlerTests
-    *
-    * ROLE
-    * -------------------------------------------------------------------------
-    * Cette classe contient l'ensemble des tests unitaires concernant
-    * le NotificationCommandHandler.
-    *
-    * Chaque méthode test correspond à un scénario métier précis.
-    *
-    ***************************************************************************/
-    public class NotificationCommandHandlerTests
+    /// <summary>
+    /// Construit un DTO Notification valide pour les tests.
+    /// </summary>
+    /// <param name="id">Identifiant de la notification.</param>
+    /// <returns>Instance de <see cref="NotificationDto"/> prête à l'emploi.</returns>
+    private static NotificationDto MakeDto(int id = 0)
     {
-        /// <summary>
-        /// Mock du service de notification.
-        /// Il simule le comportement du vrai service sans dépendre
-        /// d'une infrastructure réelle (email, push, etc.).
-        /// </summary>
-        private readonly Mock<INotificationService> _notificationServiceMock;
+        return new NotificationDto(
+            id: id,
+            userId: 12,
+            subject: "Information de vol",
+            message: "Votre vol a été replanifié.",
+            channel: "InApp",
+            status: "Pending",
+            createdAt: DateTime.UtcNow,
+            sentAt: null
+        );
+    }
 
-        /// <summary>
-        /// Instance du handler à tester.
-        /// </summary>
-        private readonly NotificationCommandHandler _handler;
+    /// <summary>
+    /// Construit une entité Notification à partir du DTO de test.
+    /// </summary>
+    /// <param name="id">Identifiant à utiliser.</param>
+    /// <returns>Entité Notification de domaine.</returns>
+    private static NotificationEntity MakeEntity(int id = 1)
+    {
+        return MakeDto(id).ToEntity();
+    }
 
-        /// <summary>
-        /// Constructeur de la classe de tests.
-        /// Initialise les mocks et les dépendances.
-        /// </summary>
-        public NotificationCommandHandlerTests()
-        {
-            // Création du mock du service
-            _notificationServiceMock = new Mock<INotificationService>();
+    /// <summary>
+    /// Prépare les mocks communs utilisés par les tests :
+    /// - le repository de Notification
+    /// - le manager de repositories
+    /// </summary>
+    /// <returns>
+    /// Un tuple contenant :
+    /// - le mock de <see cref="IRepositoryManager"/>
+    /// - le mock de <see cref="IGenericRepository{T}"/> pour Notification
+    /// </returns>
+    private static (Mock<IRepositoryManager> managerMock, Mock<IGenericRepository<NotificationEntity>> repoMock) SetupMocks()
+    {
+        var repoMock = new Mock<IGenericRepository<NotificationEntity>>();
+        var managerMock = new Mock<IRepositoryManager>();
 
-            // Injection du mock dans le handler
-            _handler = new NotificationCommandHandler(_notificationServiceMock.Object);
-        }
+        // Le handler utilise manager.Notification.
+        managerMock.Setup(m => m.Notification).Returns(repoMock.Object);
 
-        /***************************************************************************
-        * TEST 1
-        *
-        * Vérifie que le handler appelle bien le service de notification.
-        ***************************************************************************/
-        [Fact]
-        public async Task Handle_Should_Send_Notification()
-        {
-            // ------------------------------------------------------------------
-            // ARRANGE
-            // Préparation des données du test
-            // ------------------------------------------------------------------
+        return (managerMock, repoMock);
+    }
 
-            var command = new SendNotificationCommand
-            (
-                userId: Guid.NewGuid(),
-                title: "Nouveau vol",
-                message: "Un nouveau vol est disponible."
-            );
+    /// <summary>
+    /// Vérifie qu'une notification valide est correctement créée
+    /// et qu'un DTO est bien renvoyé.
+    /// </summary>
+    [Fact]
+    public async Task CreateNotification_ValidCommand_ShouldCreateAndReturnDto()
+    {
+        // Arrange
+        var (managerMock, repoMock) = SetupMocks();
+        var auditMock = new Mock<IAuditTrailService>();
 
-            // Simulation du comportement du service
-            _notificationServiceMock
-                .Setup(service => service.SendAsync(
-                    It.IsAny<Guid>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>()))
-                .Returns(Task.CompletedTask);
+        repoMock.Setup(r => r.AddAsync(It.IsAny<NotificationEntity>()))
+                .Returns((Task<int>)Task.CompletedTask);
 
-            // ------------------------------------------------------------------
-            // ACT
-            // Exécution du handler
-            // ------------------------------------------------------------------
+        auditMock.Setup(a => a.RecordAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
-            await _handler.Handle(command, CancellationToken.None);
+        var handler = new CreateNotificationCommandHandler(managerMock.Object, auditMock.Object);
 
-            // ------------------------------------------------------------------
-            // ASSERT
-            // Vérifie que le service a été appelé exactement une fois
-            // ------------------------------------------------------------------
+        // Act
+        var result = await handler.Handle(
+            new CreateNotificationCommand(MakeDto(), "unit-test"),
+            CancellationToken.None);
 
-            _notificationServiceMock.Verify(service =>
-                service.SendAsync(
-                    command.UserId,
-                    command.Title,
-                    command.Message),
-                Times.Once);
-        }
+        // Assert
+        result.Should().NotBeNull();
+        result.UserId.Should().Be(12);
+        result.Subject.Should().Be("Information de vol");
+        result.Message.Should().Be("Votre vol a été replanifié.");
 
-        /***************************************************************************
-        * TEST 2
-        *
-        * Vérifie que le handler ne lance pas d'exception lorsque tout se passe bien.
-        ***************************************************************************/
-        [Fact]
-        public async Task Handle_Should_Not_Throw_Exception_When_Service_Works()
-        {
-            // ------------------------------------------------------------------
-            // ARRANGE
-            // ------------------------------------------------------------------
+        repoMock.Verify(r => r.AddAsync(It.IsAny<NotificationEntity>()), Times.Once);
 
-            var command = new SendNotificationCommand
-            (
-                Guid.NewGuid(),
-                "Test Notification",
-                "Message de test"
-            );
+        auditMock.Verify(a => a.RecordAsync(
+                "CREATE",
+                "Notification",
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                "unit-test",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 
-            _notificationServiceMock
-                .Setup(x => x.SendAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>()))
-                .Returns(Task.CompletedTask);
+    /// <summary>
+    /// Vérifie qu'une notification existante est correctement mise à jour.
+    /// </summary>
+    [Fact]
+    public async Task UpdateNotification_ExistingNotification_ShouldUpdateAndReturnDto()
+    {
+        // Arrange
+        var entity = MakeEntity(1);
+        var (managerMock, repoMock) = SetupMocks();
+        var auditMock = new Mock<IAuditTrailService>();
 
-            // ------------------------------------------------------------------
-            // ACT
-            // ------------------------------------------------------------------
+        var updatedDto = new NotificationDto(
+            id: 1,
+            userId: 99,
+            subject: "Sujet mis à jour",
+            message: "Message mis à jour",
+            channel: "Email",
+            status: "Sent",
+            createdAt: entity.CreatedAt,
+            sentAt: DateTime.UtcNow
+        );
 
-            Func<Task> act = async () =>
-                await _handler.Handle(command, CancellationToken.None);
+        repoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(entity);
+        repoMock.Setup(r => r.Update(It.IsAny<NotificationEntity>()))
+                .Returns((Task<int>)Task.CompletedTask);
 
-            // ------------------------------------------------------------------
-            // ASSERT
-            // ------------------------------------------------------------------
+        auditMock.Setup(a => a.RecordAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
-            await act.Should().NotThrowAsync();
-        }
+        var handler = new UpdateNotificationCommandHandler(managerMock.Object, auditMock.Object);
 
-        /***************************************************************************
-        * TEST 3
-        *
-        * Vérifie que le handler propage correctement les exceptions.
-        ***************************************************************************/
-        [Fact]
-        public async Task Handle_Should_Throw_Exception_When_Service_Fails()
-        {
-            // ------------------------------------------------------------------
-            // ARRANGE
-            // ------------------------------------------------------------------
+        // Act
+        var result = await handler.Handle(
+            new UpdateNotificationCommand(1, updatedDto, "unit-test"),
+            CancellationToken.None);
 
-            var command = new SendNotificationCommand
-            (
-                Guid.NewGuid(),
-                "Erreur",
-                "Test erreur"
-            );
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(1);
+        result.UserId.Should().Be(99);
+        result.Subject.Should().Be("Sujet mis à jour");
+        result.Message.Should().Be("Message mis à jour");
+        result.Channel.Should().Be("Email");
+        result.Status.Should().Be("Sent");
 
-            _notificationServiceMock
-                .Setup(x => x.SendAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>()))
-                .ThrowsAsync(new Exception("Erreur d'envoi"));
+        repoMock.Verify(r => r.Update(It.IsAny<NotificationEntity>()), Times.Once);
 
-            // ------------------------------------------------------------------
-            // ACT
-            // ------------------------------------------------------------------
+        auditMock.Verify(a => a.RecordAsync(
+                "UPDATE",
+                "Notification",
+                "1",
+                It.IsAny<string>(),
+                "unit-test",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 
-            Func<Task> act = async () =>
-                await _handler.Handle(command, CancellationToken.None);
+    /// <summary>
+    /// Vérifie que le handler renvoie null lorsque la notification
+    /// à mettre à jour n'existe pas.
+    /// </summary>
+    [Fact]
+    public async Task UpdateNotification_NotFound_ShouldReturnNull()
+    {
+        // Arrange
+        var (managerMock, repoMock) = SetupMocks();
+        var auditMock = new Mock<IAuditTrailService>();
 
-            // ------------------------------------------------------------------
-            // ASSERT
-            // ------------------------------------------------------------------
+        repoMock.Setup(r => r.GetByIdAsync(999)).ReturnsAsync((NotificationEntity?)null);
 
-            await act.Should().ThrowAsync<Exception>();
-        }
+        var handler = new UpdateNotificationCommandHandler(managerMock.Object, auditMock.Object);
+
+        // Act
+        var result = await handler.Handle(
+            new UpdateNotificationCommand(999, MakeDto(999), "unit-test"),
+            CancellationToken.None);
+
+        // Assert
+        result.Should().BeNull();
+
+        repoMock.Verify(r => r.Update(It.IsAny<NotificationEntity>()), Times.Never);
+        auditMock.Verify(a => a.RecordAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Vérifie qu'une notification existante est correctement supprimée.
+    /// </summary>
+    [Fact]
+    public async Task DeleteNotification_ExistingNotification_ShouldReturnTrue()
+    {
+        // Arrange
+        var entity = MakeEntity(1);
+        var (managerMock, repoMock) = SetupMocks();
+        var auditMock = new Mock<IAuditTrailService>();
+
+        repoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(entity);
+        repoMock.Setup(r => r.DeleteAsync(1)).Returns((Task<int>)Task.CompletedTask);
+
+        auditMock.Setup(a => a.RecordAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var handler = new DeleteNotificationCommandHandler(managerMock.Object, auditMock.Object);
+
+        // Act
+        var result = await handler.Handle(
+            new DeleteNotificationCommand(1, "unit-test"),
+            CancellationToken.None);
+
+        // Assert
+        result.Should().BeTrue();
+
+        repoMock.Verify(r => r.DeleteAsync(1), Times.Once);
+
+        auditMock.Verify(a => a.RecordAsync(
+                "DELETE",
+                "Notification",
+                "1",
+                It.IsAny<string>(),
+                "unit-test",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Vérifie que le handler renvoie false si la notification
+    /// à supprimer n'existe pas.
+    /// </summary>
+    [Fact]
+    public async Task DeleteNotification_NotFound_ShouldReturnFalse()
+    {
+        // Arrange
+        var (managerMock, repoMock) = SetupMocks();
+        var auditMock = new Mock<IAuditTrailService>();
+
+        repoMock.Setup(r => r.GetByIdAsync(999)).ReturnsAsync((NotificationEntity?)null);
+
+        var handler = new DeleteNotificationCommandHandler(managerMock.Object, auditMock.Object);
+
+        // Act
+        var result = await handler.Handle(
+            new DeleteNotificationCommand(999, "unit-test"),
+            CancellationToken.None);
+
+        // Assert
+        result.Should().BeFalse();
+
+        repoMock.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
+        auditMock.Verify(a => a.RecordAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }
