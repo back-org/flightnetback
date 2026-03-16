@@ -1,230 +1,286 @@
-# FlightNet API — Guide des fonctionnalités avancées
+# ✈️ Flight Management System
 
-## Vue d'ensemble
+## Présentation
 
-FlightNet est une API REST .NET 9 de gestion de vols, réservations et passagers.
-Ce document décrit les fonctionnalités avancées ajoutées à l'architecture de base.
+**Flight Management System** est une application professionnelle de
+gestion de vols développée avec **ASP.NET Core (.NET 8)** en suivant les
+principes de **Clean Architecture**, **CQRS**, et **Domain Driven Design
+(DDD)**.
 
----
+L'objectif du projet est de fournir une plateforme **moderne, scalable
+et maintenable** permettant de gérer :
 
-## 📦 Structure du projet
+-   les vols
+-   les passagers
+-   les équipes
+-   les réservations
+-   les notifications
+-   l'audit des actions
+-   les utilisateurs et rôles
 
-```
-FlightNet/
-├── Flight.Api/                    # Couche présentation (Controllers, Middlewares, Auth)
-│   ├── Authorization/             # Politiques d'autorisation fines
-│   ├── Controllers/               # Contrôleurs versionnés
-│   └── Middlewares/               # Exception handling, request logging
-│
-├── Flight.Application/            # Couche application (CQRS, Validators, Behaviors)
-│   ├── CQRS/
-│   │   ├── Commands/              # Commandes MediatR (Create, Update, Delete)
-│   │   └── Queries/               # Requêtes MediatR (GetAll, GetById)
-│   ├── Behaviors/                 # Pipeline MediatR (Validation, Logging)
-│   └── Validators/                # Validateurs FluentValidation
-│
-├── Flight.Domain/                 # Entités, DTOs, interfaces domaine
-├── Flight.Domain.Core/            # Abstractions (BaseEntity, AuditEntity...)
-├── Flight.Infrastructure/         # EF Core, JWT, Repositories, AuditTrail
-│   └── AuditTrail/               # Service et entité d'audit
-│
-├── Flight.UnitTests/              # Tests unitaires (xUnit + Moq + FluentAssertions)
-│   ├── Validators/                # Tests des validateurs
-│   └── CQRS/                     # Tests des handlers
-│
-├── Flight.IntegrationTests/       # Tests d'intégration (WebApplicationFactory)
-├── .github/workflows/ci-cd.yml    # Pipeline CI/CD GitHub Actions
-├── Dockerfile                     # Image Docker multi-stage
-└── docker-compose.yml             # Stack complète (API + MySQL + Adminer)
-```
+Ce projet est conçu pour être **pédagogique et production‑ready**, avec
+un code **entièrement commenté** pour être compréhensible même par un
+développeur débutant.
 
----
+------------------------------------------------------------------------
 
-## 🔍 FluentValidation
+# 🧱 Architecture du projet
 
-Chaque DTO dispose d'un validateur dédié dans `Flight.Application/Validators/` :
+Le projet suit une **Clean Architecture** séparant les responsabilités.
 
-| Validateur | DTO | Règles principales |
-|---|---|---|
-| `FlightDtoValidator` | `FlightDto` | Code alphanumérique, départ > now, arrivée > départ, prix > 0, aéroports distincts |
-| `BookingDtoValidator` | `BookingDto` | FlightId > 0, PassengerId > 0, enum valides |
-| `PassengerDtoValidator` | `PassengerDto` | Email valide, contact téléphonique, longueurs |
-| `AirlineDtoValidator` | `AirlineDto` | Nom non vide, état valide |
-| `AirportDtoValidator` | `AirportDto` | Nom non vide, état valide |
-| `LoginRequestValidator` | `LoginRequestModel` | UserName 3-50 chars, password 6+ chars |
+    src/
+     ├── Flight.Domain
+     ├── Flight.Application
+     ├── Flight.Infrastructure
+     ├── Flight.API
+     
+    tests/
+     ├── Flight.UnitTests
 
-Les validateurs sont intégrés dans le **pipeline MediatR** via `ValidationBehavior<T>`.
-Toute erreur de validation lève une `ValidationException` avant l'exécution du handler.
+## 1️⃣ Domain
 
----
+Le **Domain** contient le cœur métier.
 
-## 🔄 Versioning d'API
+Il inclut :
 
-L'API supporte trois modes de versioning simultanément :
+-   les **entités métier**
+-   les **Value Objects**
+-   les **interfaces de repository**
+-   les **règles métier**
 
-```http
-# URL segment (recommandé)
-GET /api/v1/flights
-GET /api/v2/flights
+Exemples :
 
-# Query string
-GET /api/flights?api-version=1.0
+    Entities
+    Flight
+    Passenger
+    Booking
+    Notification
+    User
 
-# Header HTTP
-GET /api/flights
-X-API-Version: 1.0
-```
+------------------------------------------------------------------------
 
-Tous les contrôleurs sont annotés avec `[ApiVersion("1.0")]`.
-La version par défaut est **v1.0** (assumée si non précisée).
+## 2️⃣ Application
 
----
+La couche **Application** contient la logique applicative.
 
-## 🚦 Rate Limiting
+Elle implémente :
 
-Trois politiques de limitation sont configurées :
+-   **CQRS**
+-   **Commands**
+-   **Queries**
+-   **Handlers**
+-   **DTO**
+-   **Services applicatifs**
 
-| Politique | Limite | Fenêtre | Utilisée sur |
-|---|---|---|---|
-| **Globale** (par IP) | 100 req | 1 minute | Toutes les routes |
-| **auth** | 5 req | 5 minutes | `POST /account/login` |
-| **write** | 30 req | 1 minute (sliding) | POST, PUT, DELETE |
+Exemple :
 
-En cas de dépassement, l'API répond `429 Too Many Requests` avec :
-```json
-{
-  "error": "Trop de requêtes. Veuillez réessayer plus tard.",
-  "retryAfter": 60
-}
-```
+    Commands
+    SendNotificationCommand
 
----
+    Handlers
+    NotificationCommandHandler
 
-## ⚡ MediatR + CQRS
+    DTO
+    NotificationDto
 
-Les opérations sont séparées en **Commands** (écriture) et **Queries** (lecture) :
+------------------------------------------------------------------------
 
-### Queries (lecture)
-- `GetAllFlightsQuery` → Liste de tous les vols
-- `GetFlightByIdQuery(int id)` → Vol par identifiant
+## 3️⃣ Infrastructure
 
-### Commands (écriture)
-- `CreateFlightCommand(FlightDto)` → Création + audit
-- `UpdateFlightCommand(int, FlightDto)` → Mise à jour + audit
-- `DeleteFlightCommand(int)` → Suppression + audit
-- `CreateBookingCommand(BookingDto, string)` → Réservation + audit
+La couche **Infrastructure** contient :
 
-### Pipeline Behaviors
-1. **`LoggingBehavior<T>`** — Log automatique avec durée d'exécution
-2. **`ValidationBehavior<T>`** — Validation FluentValidation avant chaque handler
+-   accès base de données
+-   implémentation des repositories
+-   email
+-   notification
+-   audit trail
 
----
+Technologies utilisées :
 
-## 🔐 Politiques d'autorisation fines
+-   Entity Framework Core
+-   Logging
+-   Cache mémoire
+-   Services externes
 
-Quatre politiques définies dans `AuthorizationPolicies` :
+------------------------------------------------------------------------
 
-| Politique | Condition |
-|---|---|
-| `ActiveAdmin` | Rôle Admin ET pas en session d'impersonation |
-| `OwnerOrAdmin` | Rôle Admin OU propriétaire de la ressource |
-| `WriteAccess` | Rôles Admin ou BasicUser |
-| `AuthenticatedRead` | Tout utilisateur authentifié |
+## 4️⃣ API
 
-Exemple d'usage dans un contrôleur :
-```csharp
-[Authorize(Policy = AuthorizationPolicies.ActiveAdmin)]
-[HttpDelete("{id:int}")]
-public async Task<IActionResult> Delete(int id) { ... }
-```
+La couche **API** expose les fonctionnalités via :
 
----
+-   **ASP.NET Core Web API**
+-   **Swagger / OpenAPI**
 
-## 📋 Audit Trail
+Exemple d'endpoints :
 
-Toutes les opérations sensibles sont enregistrées dans la table `AuditLogs` :
+    /api/flights
+    /api/passengers
+    /api/bookings
+    /api/notifications
+    /api/users
 
-| Champ | Description |
-|---|---|
-| `Action` | CREATE, UPDATE, DELETE, LOGIN, LOGIN_FAILED, LOGOUT, IMPERSONATION_START... |
-| `EntityName` | Nom de l'entité (Flight, Booking, Account...) |
-| `EntityId` | Identifiant de l'entité |
-| `Details` | Détails de l'opération |
-| `PerformedBy` | Nom de l'utilisateur |
-| `IpAddress` | IP de l'appelant |
-| `PerformedAt` | Timestamp UTC |
+------------------------------------------------------------------------
 
-> **Note :** L'audit est non-bloquant — une erreur d'audit ne fait jamais échouer l'opération principale.
+## 5️⃣ Tests
 
----
+Les tests sont situés dans :
 
-## 🧪 Tests
+    tests/Flight.UnitTests
 
-### Tests unitaires (`Flight.UnitTests`)
-```bash
-dotnet test Flight.UnitTests/Flight.UnitTests.csproj -c Release
-```
+Ils couvrent :
 
-Couvre :
-- Tous les validateurs FluentValidation (cas valides et invalides)
-- Handlers CQRS (Create, Update, Delete) avec Moq
+-   les handlers CQRS
+-   les services applicatifs
+-   les règles métier
 
-### Tests d'intégration (`Flight.IntegrationTests`)
-```bash
-dotnet test Flight.IntegrationTests/Flight.IntegrationTests.csproj -c Release
-```
+Exemple :
 
-Utilise `WebApplicationFactory<Program>` avec une base InMemory.
-Couvre les endpoints HTTP (statuts, pagination, authentification).
+    NotificationCommandHandlerTests
 
----
+------------------------------------------------------------------------
 
-## 🐳 Docker
+# 🚀 Fonctionnalités principales
 
-### Build et démarrage rapide
-```bash
-# Copier les variables d'environnement
-cp .env.example .env
+## Gestion des vols
 
-# Démarrer la stack complète (API + MySQL)
-docker compose up -d
+-   création de vols
+-   modification
+-   suppression
+-   recherche
 
-# Avec Adminer (interface DB)
-docker compose --profile dev up -d
-```
+## Gestion des passagers
 
-### Endpoints disponibles
-- API : http://localhost:8080
-- Documentation Scalar : http://localhost:8080/scalar/v1
-- Health check : http://localhost:8080/health
-- Adminer (profil dev) : http://localhost:8888
+-   enregistrement des passagers
+-   historique des vols
 
----
+## Gestion des réservations
 
-## 🚀 CI/CD GitHub Actions
+-   réservation de sièges
+-   annulation
 
-Le pipeline `.github/workflows/ci-cd.yml` exécute 4 jobs :
+## Notifications
 
-1. **Build & Test** — Build, tests unitaires + intégration, couverture de code
-2. **Security Scan** — Vulnérabilités NuGet + OWASP Dependency Check
-3. **Docker Build & Push** — Image vers GitHub Container Registry (sur main/develop)
-4. **Deploy Production** — Déploiement SSH (sur main uniquement, avec approbation)
+Les utilisateurs peuvent recevoir des notifications :
 
-### Secrets GitHub requis
-```
-PROD_HOST       — Hôte du serveur de production
-PROD_USER       — Utilisateur SSH
-PROD_SSH_KEY    — Clé SSH privée
-```
+-   confirmation de réservation
+-   annulation de vol
+-   nouveaux vols disponibles
 
----
+Architecture :
 
-## 🔧 Migration base de données
+    SendNotificationCommand
+    NotificationCommandHandler
+    INotificationService
+    NotificationService
 
-```bash
-# Appliquer toutes les migrations (incluant AuditLogs)
-dotnet ef database update --project Flight.Infrastructure --startup-project Flight.Api
+------------------------------------------------------------------------
 
-# Créer une nouvelle migration
-dotnet ef migrations add NomMigration --project Flight.Infrastructure --startup-project Flight.Api
-```
+# 🧪 Tests unitaires
+
+Les tests utilisent :
+
+-   **xUnit**
+-   **Moq**
+-   **FluentAssertions**
+
+Exemple :
+
+    NotificationCommandHandlerTests.cs
+
+Les tests vérifient :
+
+-   l'appel correct des services
+-   la gestion des exceptions
+-   le comportement attendu du handler
+
+------------------------------------------------------------------------
+
+# ⚙️ Installation
+
+## 1 Installer .NET
+
+Installer .NET SDK :
+
+https://dotnet.microsoft.com
+
+Vérifier :
+
+    dotnet --version
+
+------------------------------------------------------------------------
+
+## 2 Cloner le projet
+
+    git clone https://github.com/your-repository/flight-system.git
+
+------------------------------------------------------------------------
+
+## 3 Restaurer les packages
+
+    dotnet restore
+
+------------------------------------------------------------------------
+
+## 4 Lancer l'application
+
+    dotnet run --project src/Flight.API
+
+------------------------------------------------------------------------
+
+# 📦 Lancer les tests
+
+    dotnet test
+
+------------------------------------------------------------------------
+
+# 📚 Bonnes pratiques appliquées
+
+Ce projet respecte :
+
+-   Clean Architecture
+-   SOLID Principles
+-   Dependency Injection
+-   CQRS Pattern
+-   Unit Testing
+-   Documentation du code
+
+------------------------------------------------------------------------
+
+# 🛡 Sécurité
+
+Les bonnes pratiques suivantes sont appliquées :
+
+-   validation des entrées
+-   gestion des exceptions
+-   logging centralisé
+-   audit trail
+
+------------------------------------------------------------------------
+
+# 👨‍💻 Contribution
+
+Les contributions sont les bienvenues.
+
+Avant de contribuer :
+
+-   respecter les conventions du projet
+-   ajouter des tests
+-   documenter le code
+
+------------------------------------------------------------------------
+
+# 📄 Licence
+
+MIT License
+
+------------------------------------------------------------------------
+
+# Auteur
+
+Projet développé par :
+
+**RANOELISON Dimbisoa Adrianno**
+
+Expert Comptable\
+Data Engineer\
+Architecte IA & Data Platforms
