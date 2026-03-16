@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Orchestrer le pipeline d’exécution transverse (middleware, bootstrap, configuration).
+ * Description: Ce fichier participe au sous-domaine 'Flight.Application/Applications' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;

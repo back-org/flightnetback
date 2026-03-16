@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Composant applicatif.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Api' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using Asp.Versioning;
 using DotNetEnv;
 using FluentValidation;

@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Définir les contrats métier et techniques entre couches.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Domain/Interfaces' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 ﻿using System.Linq.Expressions;
 
 namespace Flight.Domain.Interfaces;

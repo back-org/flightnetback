@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Sécuriser l’accès applicatif (authentification, autorisation, tokens).
+ * Description: Ce fichier participe au sous-domaine 'Flight.Infrastructure/Auth' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using System.Text.Json.Serialization;
 
 namespace Flight.Infrastructure.Auth;

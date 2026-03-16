@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Fournir les implémentations techniques des services et dépôts métier.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Infrastructure/Contracts' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
 using Flight.Infrastructure.Database;

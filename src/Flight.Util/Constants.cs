@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Composant applicatif.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Util' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 ﻿namespace Flight.Util;
 
 /// <summary>

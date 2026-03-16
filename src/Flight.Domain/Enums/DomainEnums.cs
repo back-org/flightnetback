@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Modéliser les entités métier du domaine aérien.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Domain/Entities' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 namespace Flight.Domain.Entities;
 
 /// <summary>
