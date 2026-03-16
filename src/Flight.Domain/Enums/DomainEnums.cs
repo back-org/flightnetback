@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Centraliser les énumérations métier du domaine aérien.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Domain/Enums' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 namespace Flight.Domain.Entities;
 
 /// <summary>
@@ -58,4 +63,27 @@ public enum State
 
     /// <summary>Entité inactive ou suspendue.</summary>
     Inactive
+}
+
+
+/// <summary>
+/// Représente les méthodes de paiement autorisées.
+/// </summary>
+public enum PaymentMethod
+{
+    Cash,
+    Card,
+    MobileMoney,
+    BankTransfer
+}
+
+/// <summary>
+/// Représente le statut d'un paiement.
+/// </summary>
+public enum PaymentStatus
+{
+    Pending,
+    Paid,
+    Failed,
+    Refunded
 }

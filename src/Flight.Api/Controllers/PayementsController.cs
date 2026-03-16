@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Exposer les endpoints HTTP pour les cas d’usage métier de gestion de vols.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Api/Controllers' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using Asp.Versioning;
 using Flight.Application.CQRS.Commands.Payments;
 using Flight.Application.CQRS.Queries.Payments;

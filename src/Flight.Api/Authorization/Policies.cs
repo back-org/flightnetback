@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Sécuriser l’accès applicatif (authentification, autorisation, tokens).
+ * Description: Ce fichier participe au sous-domaine 'Flight.Api/Authorization' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using Microsoft.AspNetCore.Authorization;
 
 namespace Flight.Api.Authorization;

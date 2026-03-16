@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Transporter les données métier entre couches sans exposer les entités internes.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Application/DTOs' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 ﻿using System.ComponentModel.DataAnnotations;
 using Flight.Domain.Entities;
 
