@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Composant applicatif.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Domain.Core/Specifications' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;

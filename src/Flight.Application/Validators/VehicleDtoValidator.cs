@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Appliquer les règles de validation métier et fonctionnelle.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Application/Validators' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 ﻿using Flight.Application.DTOs;
 using FluentValidation;
 

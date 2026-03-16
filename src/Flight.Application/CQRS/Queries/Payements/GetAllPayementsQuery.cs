@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Implémenter les commandes et requêtes métier via le pattern CQRS.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Application/CQRS/Queries/Payements' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using Flight.Application.DTOs;
 using Flight.Infrastructure.Interfaces;
 using MediatR;

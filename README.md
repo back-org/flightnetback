@@ -1,314 +1,171 @@
-# ✈️ Flight Management System
+# ✈️ FlightNetBack — Plateforme Professionnelle de Gestion de Vols
 
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
 ![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-blue)
 ![Pattern](https://img.shields.io/badge/Pattern-CQRS-green)
-![Tests](https://img.shields.io/badge/Tested%20with-xUnit-orange)
-![License](https://img.shields.io/badge/License-MIT-lightgrey)
-
-------------------------------------------------------------------------
-
-# Overview
-
-**Flight Management System** is an enterprise-grade backend platform
-designed to manage airline operations.\
-The project demonstrates a **production-level architecture** built with
-modern backend standards.
-
-The system uses:
-
--   **ASP.NET Core (.NET 8)**
--   **Clean Architecture**
--   **CQRS**
--   **Domain Driven Design**
--   **Unit Testing**
--   **Modular Infrastructure**
-
-The goal of the project is to provide a **scalable, maintainable and
-extensible backend** suitable for real-world airline systems.
-
-------------------------------------------------------------------------
-
-# Key Features
-
-The platform supports the management of:
-
--   ✈️ Flights
--   👤 Passengers
--   🎫 Reservations
--   👨‍✈️ Crew and Teams
--   🔔 Notifications
--   📝 Audit Logs
--   🔐 Users and Roles
-
-------------------------------------------------------------------------
-
-# Architecture
-
-The system follows **Clean Architecture principles**.
-
-                    +--------------------------+
-                    |        API Layer         |
-                    | Controllers / Swagger    |
-                    +------------+-------------+
-                                 |
-                                 v
-                    +--------------------------+
-                    |     Application Layer     |
-                    | CQRS / Handlers / DTOs   |
-                    +------------+-------------+
-                                 |
-                                 v
-                    +--------------------------+
-                    |       Domain Layer       |
-                    | Entities / Rules / DDD   |
-                    +------------+-------------+
-                                 |
-                                 v
-                    +--------------------------+
-                    |    Infrastructure Layer  |
-                    | EF Core / Services       |
-                    +--------------------------+
-
-------------------------------------------------------------------------
-
-# CQRS Flow Example
-
-Notification workflow:
-
-    API Controller
-          │
-          ▼
-    SendNotificationCommand
-          │
-          ▼
-    NotificationCommandHandler
-          │
-          ▼
-    INotificationService
-          │
-          ▼
-    NotificationService
-
-------------------------------------------------------------------------
-
-# Project Structure
-
-    src
-     ├── Flight.Domain
-     │     ├── Entities
-     │     ├── ValueObjects
-     │     └── Interfaces
-     │
-     ├── Flight.Application
-     │     ├── Commands
-     │     ├── Queries
-     │     ├── Handlers
-     │     ├── DTOs
-     │     └── Services
-     │
-     ├── Flight.Infrastructure
-     │     ├── Persistence
-     │     ├── Repositories
-     │     ├── Notifications
-     │     └── AuditTrail
-     │
-     └── Flight.API
-           ├── Controllers
-           └── Program.cs
+![Tests](https://img.shields.io/badge/Tests-xUnit-orange)
+![Status](https://img.shields.io/badge/Readme-Professional-success)
 
-    tests
-     └── Flight.UnitTests
-           ├── Commands
-           ├── Queries
-           └── Services
+## 1) Vision Produit
 
-------------------------------------------------------------------------
+**FlightNetBack** est un backend enterprise conçu pour piloter les opérations d’un système aérien moderne :
+- gestion des vols, réservations et passagers,
+- administration des utilisateurs et rôles,
+- audit des actions critiques,
+- sécurité API (JWT + refresh token),
+- extensibilité orientée production.
 
-# Core Technologies
+L’objectif est d’offrir une base **robuste, maintenable, scalable** et crédible en contexte professionnel (startup, DSI, compagnie aérienne, intégrateur).
 
-  Technology              Purpose
-  ----------------------- -------------------
-  ASP.NET Core            Web API
-  Entity Framework Core   ORM
-  MediatR                 CQRS
-  xUnit                   Unit testing
-  Moq                     Mocking
-  FluentAssertions        Assertions
-  Swagger                 API documentation
+---
 
-------------------------------------------------------------------------
+## 2) Positionnement Technique
 
-# Database Architecture (Concept)
+- **Framework**: ASP.NET Core (.NET 8)
+- **Architecture**: Clean Architecture + séparation stricte des couches
+- **Pattern métier**: CQRS (MediatR)
+- **Persistance**: Entity Framework Core
+- **Validation**: FluentValidation
+- **Observabilité**: Logs + audit trail
+- **Tests**: xUnit (unitaires + intégration)
 
-    Users
-      │
-      ├── Reservations
-      │        │
-      │        └── Flights
-      │
-      └── Notifications
+---
 
-------------------------------------------------------------------------
+## 3) Capacités Métier Couvertes
 
-# Notification Module
+La plateforme couvre les domaines fonctionnels suivants :
 
-The notification module sends alerts to users for:
+- ✈️ **Vols** : création, modification, suivi des capacités et tarifs
+- 🎫 **Réservations** : cycle de vie booking, statut, montant total, devise
+- 👤 **Passagers** : identité, lien avec réservations et billets
+- 🧳 **Bagages** : suivi des bagages et rattachement opérationnel
+- 🧑‍✈️ **Équipage** : membres d’équipage, organisation opérationnelle
+- 💳 **Paiements** : méthode, statut de transaction, référence
+- 🔔 **Notifications** : diffusion d’événements métier
+- 🔐 **Sécurité** : authentification, autorisation, rôles, tokens
+- 📝 **Audit** : traçabilité des opérations critiques
 
--   reservation confirmations
--   flight cancellations
--   system announcements
+---
 
-Components:
+## 4) Architecture Applicative
 
-    SendNotificationCommand
-    NotificationCommandHandler
-    INotificationService
-    NotificationService
-    NotificationDto
+```text
+API (Controllers, Middlewares)
+        ↓
+Application (CQRS, DTOs, Validators, Behaviors)
+        ↓
+Domain (Entities, règles métier, enums)
+        ↓
+Infrastructure (EF Core, Repositories, Auth, Audit)
+```
 
-------------------------------------------------------------------------
+### Principes appliqués
+- responsabilités claires par couche,
+- dépendances orientées vers le domaine,
+- testabilité des cas d’usage,
+- facilité d’évolution sans effet domino.
 
-# Testing Strategy
+---
 
-Tests are located in:
+## 5) Structure du Repository
 
-    tests/Flight.UnitTests
+```text
+src/
+├── Flight.Api/                # Exposition HTTP + pipeline d'exécution
+├── Flight.Application/        # Cas d'usage (CQRS), DTOs, validation
+├── Flight.Domain/             # Modèle métier (Entities + Enums)
+├── Flight.Domain.Core/        # Abstractions transverses du domaine
+├── Flight.Infrastructure/     # Persistence, auth, audit, repository pattern
+├── Flight.CrossCutting/       # Utilitaires transverses
+└── Flight.Util/               # Constantes et helpers
 
-Example test file:
+tests/
+├── Flight.UnitTests/          # Tests unitaires des handlers/commands/queries
+└── Flight.IntegrationTests/   # Tests de bout en bout API
+```
 
-    NotificationCommandHandlerTests.cs
+---
 
-Testing stack:
+## 6) Convention de Documentation Métier des Fichiers
 
--   **xUnit**
--   **Moq**
--   **FluentAssertions**
+Pour un rendu professionnel et lisible en équipe:
 
-Tests verify:
+- chaque fichier de code contient désormais une en-tête descriptive,
+- cette en-tête explicite le **rôle métier du fichier**,
+- la description relie le fichier à son sous-domaine fonctionnel.
 
--   correct handler behaviour
--   service invocation
--   exception management
+Cette convention améliore:
+- l’onboarding des développeurs,
+- la compréhension fonctionnelle du code,
+- la qualité perçue en audit technique.
 
-------------------------------------------------------------------------
+---
 
-# Installation
+## 7) Gestion des Enums Métier
 
-## Install .NET
+Un dossier dédié a été structuré côté domaine:
 
-Download .NET SDK:
+- `src/Flight.Domain/Enums/`
 
-https://dotnet.microsoft.com
+Objectif:
+- centraliser les énumérations métier,
+- clarifier la sémantique des états métier,
+- préparer l’extension du modèle (ex: statuts de paiement, classes tarifaires, état opérationnel).
 
-Verify installation:
+---
 
-    dotnet --version
+## 8) Installation & Exécution
 
-------------------------------------------------------------------------
+### Prérequis
+- .NET SDK 8+
+- Base de données compatible EF Core
 
-## Clone the repository
+### Commandes
+```bash
+dotnet restore
+```
 
-    git clone https://github.com/your-repository/flight-management-system.git
+```bash
+dotnet build
+```
 
-------------------------------------------------------------------------
+```bash
+dotnet run --project src/Flight.Api
+```
 
-## Restore dependencies
+Swagger:
+- `http://localhost:5000/swagger`
+- ou port configuré localement dans `launchSettings` / `appsettings`
 
-    dotnet restore
+---
 
-------------------------------------------------------------------------
+## 9) Qualité & Tests
 
-## Run the API
+Exécuter tous les tests:
 
-    dotnet run --project src/Flight.API
+```bash
+dotnet test
+```
 
-Swagger UI:
+Recommandations de qualité:
+- garder les règles FluentValidation alignées avec les règles métier,
+- maintenir la séparation Command/Query,
+- versionner les migrations EF avec discipline,
+- tracer les actions sensibles via audit log.
 
-    http://localhost:5000/swagger
+---
 
-------------------------------------------------------------------------
+## 10) Valeur Professionnelle (Perception Expert)
 
-# Running Tests
+Ce projet met en avant les marqueurs attendus d’un backend senior/lead:
+- architecture maîtrisée,
+- découplage des responsabilités,
+- conventions de documentation métier,
+- sécurité et auditabilité,
+- automatisation des tests,
+- clarté de maintenance long terme.
 
-    dotnet test
-
-------------------------------------------------------------------------
-
-# CI/CD Example (GitHub Actions)
-
-Example pipeline:
-
-    name: .NET Build and Test
-
-    on:
-      push:
-        branches: [ main ]
-
-    jobs:
-      build:
-
-        runs-on: ubuntu-latest
-
-        steps:
-          - uses: actions/checkout@v4
-
-          - name: Setup .NET
-            uses: actions/setup-dotnet@v4
-            with:
-              dotnet-version: 8.0.x
-
-          - name: Restore
-            run: dotnet restore
-
-          - name: Build
-            run: dotnet build --configuration Release
-
-          - name: Test
-            run: dotnet test
-
-------------------------------------------------------------------------
-
-# Security
-
-The application applies security best practices:
-
--   dependency injection
--   input validation
--   centralized logging
--   audit trail
--   exception handling
-
-------------------------------------------------------------------------
-
-# Roadmap
-
-Future improvements may include:
-
--   SignalR real-time notifications
--   Redis distributed caching
--   microservices architecture
--   event-driven messaging (Kafka / RabbitMQ)
--   containerization with Docker
-
-------------------------------------------------------------------------
-
-# Contribution
-
-Contributions are welcome.
-
-Please ensure:
-
--   code follows Clean Architecture
--   tests are added
--   documentation is updated
-
-------------------------------------------------------------------------
-
-# Author
-
-**RANOELISON Dimbisoa Adrianno**
-
-Data Engineer\
-AI & Data Architect\
-Expert Comptable
+En pratique, il constitue une excellente base pour:
+- démo client,
+- portfolio expert,
+- industrialisation en environnement réel.

@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Orchestrer le pipeline d’exécution transverse (middleware, bootstrap, configuration).
+ * Description: Ce fichier participe au sous-domaine 'Flight.Application/Applications' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using Microsoft.Extensions.Logging;
 
 namespace Flight.Application.Applications;

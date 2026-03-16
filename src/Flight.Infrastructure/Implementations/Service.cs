@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Fournir les implémentations techniques des services et dépôts métier.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Infrastructure/Implementations' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using Flight.Domain.Core.Abstracts;
 using Flight.Domain.Entities;
 using Flight.Infrastructure.Interfaces;

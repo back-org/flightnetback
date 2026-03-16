@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Composant applicatif.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Infrastructure/AuditTrail' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using Flight.Domain.Entities;
 using Flight.Infrastructure.Database;
 using Flight.Infrastructure.Interfaces;

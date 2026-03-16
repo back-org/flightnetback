@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Orchestrer le pipeline d’exécution transverse (middleware, bootstrap, configuration).
+ * Description: Ce fichier participe au sous-domaine 'Flight.Api/Middlewares' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using System.Diagnostics;
 
 namespace Flight.Api.Middlewares;

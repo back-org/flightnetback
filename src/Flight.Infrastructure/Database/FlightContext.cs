@@ -1,3 +1,8 @@
+/*
+ * Rôle métier du fichier: Gérer la persistance et la cartographie des objets métier.
+ * Description: Ce fichier participe au sous-domaine 'Flight.Infrastructure/Database' et contribue au fonctionnement professionnel de la plateforme de gestion de vols.
+ */
+
 using Flight.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
