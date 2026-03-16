@@ -1,286 +1,314 @@
 # ✈️ Flight Management System
 
-## Présentation
-
-**Flight Management System** est une application professionnelle de
-gestion de vols développée avec **ASP.NET Core (.NET 8)** en suivant les
-principes de **Clean Architecture**, **CQRS**, et **Domain Driven Design
-(DDD)**.
-
-L'objectif du projet est de fournir une plateforme **moderne, scalable
-et maintenable** permettant de gérer :
-
--   les vols
--   les passagers
--   les équipes
--   les réservations
--   les notifications
--   l'audit des actions
--   les utilisateurs et rôles
-
-Ce projet est conçu pour être **pédagogique et production‑ready**, avec
-un code **entièrement commenté** pour être compréhensible même par un
-développeur débutant.
+![.NET](https://img.shields.io/badge/.NET-8.0-purple)
+![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-blue)
+![Pattern](https://img.shields.io/badge/Pattern-CQRS-green)
+![Tests](https://img.shields.io/badge/Tested%20with-xUnit-orange)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
 ------------------------------------------------------------------------
 
-# 🧱 Architecture du projet
+# Overview
 
-Le projet suit une **Clean Architecture** séparant les responsabilités.
+**Flight Management System** is an enterprise-grade backend platform
+designed to manage airline operations.\
+The project demonstrates a **production-level architecture** built with
+modern backend standards.
 
-    src/
-     ├── Flight.Domain
-     ├── Flight.Application
-     ├── Flight.Infrastructure
-     ├── Flight.API
-     
-    tests/
-     ├── Flight.UnitTests
+The system uses:
 
-## 1️⃣ Domain
-
-Le **Domain** contient le cœur métier.
-
-Il inclut :
-
--   les **entités métier**
--   les **Value Objects**
--   les **interfaces de repository**
--   les **règles métier**
-
-Exemples :
-
-    Entities
-    Flight
-    Passenger
-    Booking
-    Notification
-    User
-
-------------------------------------------------------------------------
-
-## 2️⃣ Application
-
-La couche **Application** contient la logique applicative.
-
-Elle implémente :
-
+-   **ASP.NET Core (.NET 8)**
+-   **Clean Architecture**
 -   **CQRS**
--   **Commands**
--   **Queries**
--   **Handlers**
--   **DTO**
--   **Services applicatifs**
+-   **Domain Driven Design**
+-   **Unit Testing**
+-   **Modular Infrastructure**
 
-Exemple :
+The goal of the project is to provide a **scalable, maintainable and
+extensible backend** suitable for real-world airline systems.
 
-    Commands
+------------------------------------------------------------------------
+
+# Key Features
+
+The platform supports the management of:
+
+-   ✈️ Flights
+-   👤 Passengers
+-   🎫 Reservations
+-   👨‍✈️ Crew and Teams
+-   🔔 Notifications
+-   📝 Audit Logs
+-   🔐 Users and Roles
+
+------------------------------------------------------------------------
+
+# Architecture
+
+The system follows **Clean Architecture principles**.
+
+                    +--------------------------+
+                    |        API Layer         |
+                    | Controllers / Swagger    |
+                    +------------+-------------+
+                                 |
+                                 v
+                    +--------------------------+
+                    |     Application Layer     |
+                    | CQRS / Handlers / DTOs   |
+                    +------------+-------------+
+                                 |
+                                 v
+                    +--------------------------+
+                    |       Domain Layer       |
+                    | Entities / Rules / DDD   |
+                    +------------+-------------+
+                                 |
+                                 v
+                    +--------------------------+
+                    |    Infrastructure Layer  |
+                    | EF Core / Services       |
+                    +--------------------------+
+
+------------------------------------------------------------------------
+
+# CQRS Flow Example
+
+Notification workflow:
+
+    API Controller
+          │
+          ▼
     SendNotificationCommand
-
-    Handlers
+          │
+          ▼
     NotificationCommandHandler
-
-    DTO
-    NotificationDto
-
-------------------------------------------------------------------------
-
-## 3️⃣ Infrastructure
-
-La couche **Infrastructure** contient :
-
--   accès base de données
--   implémentation des repositories
--   email
--   notification
--   audit trail
-
-Technologies utilisées :
-
--   Entity Framework Core
--   Logging
--   Cache mémoire
--   Services externes
+          │
+          ▼
+    INotificationService
+          │
+          ▼
+    NotificationService
 
 ------------------------------------------------------------------------
 
-## 4️⃣ API
+# Project Structure
 
-La couche **API** expose les fonctionnalités via :
+    src
+     ├── Flight.Domain
+     │     ├── Entities
+     │     ├── ValueObjects
+     │     └── Interfaces
+     │
+     ├── Flight.Application
+     │     ├── Commands
+     │     ├── Queries
+     │     ├── Handlers
+     │     ├── DTOs
+     │     └── Services
+     │
+     ├── Flight.Infrastructure
+     │     ├── Persistence
+     │     ├── Repositories
+     │     ├── Notifications
+     │     └── AuditTrail
+     │
+     └── Flight.API
+           ├── Controllers
+           └── Program.cs
 
--   **ASP.NET Core Web API**
--   **Swagger / OpenAPI**
-
-Exemple d'endpoints :
-
-    /api/flights
-    /api/passengers
-    /api/bookings
-    /api/notifications
-    /api/users
-
-------------------------------------------------------------------------
-
-## 5️⃣ Tests
-
-Les tests sont situés dans :
-
-    tests/Flight.UnitTests
-
-Ils couvrent :
-
--   les handlers CQRS
--   les services applicatifs
--   les règles métier
-
-Exemple :
-
-    NotificationCommandHandlerTests
+    tests
+     └── Flight.UnitTests
+           ├── Commands
+           ├── Queries
+           └── Services
 
 ------------------------------------------------------------------------
 
-# 🚀 Fonctionnalités principales
+# Core Technologies
 
-## Gestion des vols
+  Technology              Purpose
+  ----------------------- -------------------
+  ASP.NET Core            Web API
+  Entity Framework Core   ORM
+  MediatR                 CQRS
+  xUnit                   Unit testing
+  Moq                     Mocking
+  FluentAssertions        Assertions
+  Swagger                 API documentation
 
--   création de vols
--   modification
--   suppression
--   recherche
+------------------------------------------------------------------------
 
-## Gestion des passagers
+# Database Architecture (Concept)
 
--   enregistrement des passagers
--   historique des vols
+    Users
+      │
+      ├── Reservations
+      │        │
+      │        └── Flights
+      │
+      └── Notifications
 
-## Gestion des réservations
+------------------------------------------------------------------------
 
--   réservation de sièges
--   annulation
+# Notification Module
 
-## Notifications
+The notification module sends alerts to users for:
 
-Les utilisateurs peuvent recevoir des notifications :
+-   reservation confirmations
+-   flight cancellations
+-   system announcements
 
--   confirmation de réservation
--   annulation de vol
--   nouveaux vols disponibles
-
-Architecture :
+Components:
 
     SendNotificationCommand
     NotificationCommandHandler
     INotificationService
     NotificationService
+    NotificationDto
 
 ------------------------------------------------------------------------
 
-# 🧪 Tests unitaires
+# Testing Strategy
 
-Les tests utilisent :
+Tests are located in:
+
+    tests/Flight.UnitTests
+
+Example test file:
+
+    NotificationCommandHandlerTests.cs
+
+Testing stack:
 
 -   **xUnit**
 -   **Moq**
 -   **FluentAssertions**
 
-Exemple :
+Tests verify:
 
-    NotificationCommandHandlerTests.cs
-
-Les tests vérifient :
-
--   l'appel correct des services
--   la gestion des exceptions
--   le comportement attendu du handler
+-   correct handler behaviour
+-   service invocation
+-   exception management
 
 ------------------------------------------------------------------------
 
-# ⚙️ Installation
+# Installation
 
-## 1 Installer .NET
+## Install .NET
 
-Installer .NET SDK :
+Download .NET SDK:
 
 https://dotnet.microsoft.com
 
-Vérifier :
+Verify installation:
 
     dotnet --version
 
 ------------------------------------------------------------------------
 
-## 2 Cloner le projet
+## Clone the repository
 
-    git clone https://github.com/your-repository/flight-system.git
+    git clone https://github.com/your-repository/flight-management-system.git
 
 ------------------------------------------------------------------------
 
-## 3 Restaurer les packages
+## Restore dependencies
 
     dotnet restore
 
 ------------------------------------------------------------------------
 
-## 4 Lancer l'application
+## Run the API
 
     dotnet run --project src/Flight.API
 
+Swagger UI:
+
+    http://localhost:5000/swagger
+
 ------------------------------------------------------------------------
 
-# 📦 Lancer les tests
+# Running Tests
 
     dotnet test
 
 ------------------------------------------------------------------------
 
-# 📚 Bonnes pratiques appliquées
+# CI/CD Example (GitHub Actions)
 
-Ce projet respecte :
+Example pipeline:
 
--   Clean Architecture
--   SOLID Principles
--   Dependency Injection
--   CQRS Pattern
--   Unit Testing
--   Documentation du code
+    name: .NET Build and Test
+
+    on:
+      push:
+        branches: [ main ]
+
+    jobs:
+      build:
+
+        runs-on: ubuntu-latest
+
+        steps:
+          - uses: actions/checkout@v4
+
+          - name: Setup .NET
+            uses: actions/setup-dotnet@v4
+            with:
+              dotnet-version: 8.0.x
+
+          - name: Restore
+            run: dotnet restore
+
+          - name: Build
+            run: dotnet build --configuration Release
+
+          - name: Test
+            run: dotnet test
 
 ------------------------------------------------------------------------
 
-# 🛡 Sécurité
+# Security
 
-Les bonnes pratiques suivantes sont appliquées :
+The application applies security best practices:
 
--   validation des entrées
--   gestion des exceptions
--   logging centralisé
+-   dependency injection
+-   input validation
+-   centralized logging
 -   audit trail
+-   exception handling
 
 ------------------------------------------------------------------------
 
-# 👨‍💻 Contribution
+# Roadmap
 
-Les contributions sont les bienvenues.
+Future improvements may include:
 
-Avant de contribuer :
-
--   respecter les conventions du projet
--   ajouter des tests
--   documenter le code
-
-------------------------------------------------------------------------
-
-# 📄 Licence
-
-MIT License
+-   SignalR real-time notifications
+-   Redis distributed caching
+-   microservices architecture
+-   event-driven messaging (Kafka / RabbitMQ)
+-   containerization with Docker
 
 ------------------------------------------------------------------------
 
-# Auteur
+# Contribution
 
-Projet développé par :
+Contributions are welcome.
+
+Please ensure:
+
+-   code follows Clean Architecture
+-   tests are added
+-   documentation is updated
+
+------------------------------------------------------------------------
+
+# Author
 
 **RANOELISON Dimbisoa Adrianno**
 
-Expert Comptable\
 Data Engineer\
-Architecte IA & Data Platforms
+AI & Data Architect\
+Expert Comptable
