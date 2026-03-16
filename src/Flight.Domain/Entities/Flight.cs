@@ -112,4 +112,9 @@ public partial class Flight : DeleteEntity<int>
     [Column("from_airport")]
     [JsonProperty(PropertyName = "from")]
     public int From { get; set; }
+
+      /// <summary>
+    /// Identifiant de l'avion affecté au vol.
+    /// </summary>
+    public int? AircraftId { get; set; }
 }

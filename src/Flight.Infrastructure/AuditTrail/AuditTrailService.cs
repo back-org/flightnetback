@@ -1,3 +1,4 @@
+using Flight.Domain.Entities;
 using Flight.Infrastructure.Database;
 using Flight.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Http;

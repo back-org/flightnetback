@@ -1,88 +1,158 @@
-﻿using Flight.Domain.Entities;
+using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
-using Flight.Infrastructure.Interfaces;
-using System;
-using Flight.Domain.Core.Abstracts;
 using Flight.Infrastructure.Database;
+using Flight.Infrastructure.Interfaces;
 
 namespace Flight.Infrastructure.Contracts;
 
 /// <summary>
-/// The repository manager.
+/// Implémentation concrète du gestionnaire central des repositories.
+/// Cette classe instancie les repositories à la demande et les réutilise ensuite.
+/// 
+/// Cela permet :
+/// - d'éviter la duplication
+/// - de centraliser l'accès aux données
+/// - de simplifier l'injection de dépendances
 /// </summary>
-public sealed class RepositoryManager(FlightContext repositoryContext) : IRepositoryManager
+public class RepositoryManager : IRepositoryManager
 {
-    private readonly Lazy<IGenericRepository<Airline>> _airlineRepository = new(() => new
-        AirlineRepository(repositoryContext));
+    private readonly FlightContext _context;
 
-    private readonly Lazy<IGenericRepository<Airport>> _airportRepository = new(() => new
-        AirportRepository(repositoryContext));
+    // ============================================================
+    // Champs privés pour stocker les repositories déjà créés
+    // ============================================================
 
-    private readonly Lazy<IGenericRepository<Booking>> _bookingRepository = new(() => new
-        BookingRepository(repositoryContext));
+    private IGenericRepository<Airline>? _airline;
+    private IGenericRepository<Airport>? _airport;
+    private IGenericRepository<Booking>? _booking;
+    private IGenericRepository<City>? _city;
+    private IGenericRepository<Country>? _country;
+    private IGenericRepository<Domain.Entities.Flight>? _flight;
+    private IGenericRepository<Passenger>? _passenger;
+    private IGenericRepository<Vehicle>? _vehicle;
 
-    private readonly Lazy<IGenericRepository<City>> _cityRepository = new(() => new
-        CityRepository(repositoryContext));
+    private IGenericRepository<User>? _user;
+    private IGenericRepository<Role>? _role;
+    private IGenericRepository<UserRole>? _userRole;
+    private IGenericRepository<RefreshToken>? _refreshToken;
 
-    private readonly Lazy<IGenericRepository<Country>> _countryRepository = new(() => new
-        CountryRepository(repositoryContext));
+    private IGenericRepository<CrewMember>? _crewMember;
+    private IGenericRepository<Aircraft>? _aircraft;
 
-    private readonly Lazy<IGenericRepository<Domain.Entities.Flight>> _flightRepository = new(() => new
-        FlightRepository(repositoryContext));
-
-    private readonly Lazy<IGenericRepository<Passenger>> _passengerRepository = new(() => new
-        PassengerRepository(repositoryContext));
-
-    private readonly Lazy<IGenericRepository<Vehicle>> _vehicleRepository = new(() => new
-        VehicleRepository(repositoryContext));
-
-    public IGenericRepository<DeleteEntity<int>> Entity { get; }
-
-    /// <summary>
-    /// Gets the airline.
-    /// </summary>
-    public IGenericRepository<Airline> Airline => _airlineRepository.Value;
-
-    /// <summary>
-    /// Gets the airport.
-    /// </summary>
-    public IGenericRepository<Airport> Airport => _airportRepository.Value;
+    private IGenericRepository<Payment>? _payment;
+    private IGenericRepository<Ticket>? _ticket;
+    private IGenericRepository<SeatAssignment>? _seatAssignment;
+    private IGenericRepository<Notification>? _notification;
+    private IGenericRepository<TaskItem>? _taskItem;
+    private IGenericRepository<Baggage>? _baggage;
+    private IGenericRepository<AuditLog>? _auditLog;
 
     /// <summary>
-    /// Gets the booking.
+    /// Initialise une nouvelle instance du gestionnaire de repositories.
     /// </summary>
-    public IGenericRepository<Booking> Booking => _bookingRepository.Value;
-
-    /// <summary>
-    /// Gets the city.
-    /// </summary>
-    public IGenericRepository<City> City => _cityRepository.Value;
-
-    /// <summary>
-    /// Gets the country.
-    /// </summary>
-    public IGenericRepository<Country> Country => _countryRepository.Value;
-
-    /// <summary>
-    /// Gets the flight.
-    /// </summary>
-    public IGenericRepository<Domain.Entities.Flight> Flight => _flightRepository.Value;
-
-    /// <summary>
-    /// Gets the passenger.
-    /// </summary>
-    public IGenericRepository<Passenger> Passenger => _passengerRepository.Value;
-
-    /// <summary>
-    /// Gets the vehicle.
-    /// </summary>
-    public IGenericRepository<Vehicle> Vehicle => _vehicleRepository.Value;
-
-    /// <summary>
-    /// Saves the.
-    /// </summary>
-    public void Save()
+    /// <param name="context">Contexte EF Core utilisé pour accéder à la base de données.</param>
+    public RepositoryManager(FlightContext context)
     {
-        repositoryContext.SaveChanges();
+        _context = context;
     }
+
+    // ============================================================
+    // Repositories historiques / cœur métier
+    // ============================================================
+
+    /// <inheritdoc />
+    public IGenericRepository<Airline> Airline =>
+        _airline ??= new GenericRepository<Airline>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Airport> Airport =>
+        _airport ??= new GenericRepository<Airport>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Booking> Booking =>
+        _booking ??= new GenericRepository<Booking>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<City> City =>
+        _city ??= new GenericRepository<City>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Country> Country =>
+        _country ??= new GenericRepository<Country>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Domain.Entities.Flight> Flight =>
+        _flight ??= new GenericRepository<Domain.Entities.Flight>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Passenger> Passenger =>
+        _passenger ??= new GenericRepository<Passenger>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Vehicle> Vehicle =>
+        _vehicle ??= new GenericRepository<Vehicle>(_context);
+
+    // ============================================================
+    // Repositories multiutilisateurs / sécurité
+    // ============================================================
+
+    /// <inheritdoc />
+    public IGenericRepository<User> User =>
+        _user ??= new GenericRepository<User>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Role> Role =>
+        _role ??= new GenericRepository<Role>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<UserRole> UserRole =>
+        _userRole ??= new GenericRepository<UserRole>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<RefreshToken> RefreshToken =>
+        _refreshToken ??= new GenericRepository<RefreshToken>(_context);
+
+    // ============================================================
+    // Repositories équipe / exploitation
+    // ============================================================
+
+    /// <inheritdoc />
+    public IGenericRepository<CrewMember> CrewMember =>
+        _crewMember ??= new GenericRepository<CrewMember>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Aircraft> Aircraft =>
+        _aircraft ??= new GenericRepository<Aircraft>(_context);
+
+    // ============================================================
+    // Repositories métier complémentaires
+    // ============================================================
+
+    /// <inheritdoc />
+    public IGenericRepository<Payment> Payment =>
+        _payment ??= new GenericRepository<Payment>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Ticket> Ticket =>
+        _ticket ??= new GenericRepository<Ticket>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<SeatAssignment> SeatAssignment =>
+        _seatAssignment ??= new GenericRepository<SeatAssignment>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Notification> Notification =>
+        _notification ??= new GenericRepository<Notification>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<TaskItem> TaskItem =>
+        _taskItem ??= new GenericRepository<TaskItem>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<Baggage> Baggage =>
+        _baggage ??= new GenericRepository<Baggage>(_context);
+
+    /// <inheritdoc />
+    public IGenericRepository<AuditLog> AuditLog =>
+        _auditLog ??= new GenericRepository<AuditLog>(_context);
 }

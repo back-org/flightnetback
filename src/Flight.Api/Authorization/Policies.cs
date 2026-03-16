@@ -17,11 +17,13 @@ public class ActiveAdminHandler : AuthorizationHandler<ActiveAdminRequirement>
         AuthorizationHandlerContext context,
         ActiveAdminRequirement requirement)
     {
-        var isAdmin = context.User.IsInRole("Admin");
-        var isImpersonating = context.User.FindFirst("OriginalUserName") != null;
+        bool isAdmin = context.User.IsInRole("Admin");
+        bool isImpersonating = context.User.FindFirst("OriginalUserName") != null;
 
         if (isAdmin && !isImpersonating)
+        {
             context.Succeed(requirement);
+        }
 
         return Task.CompletedTask;
     }
@@ -49,11 +51,15 @@ public class ResourceOwnerOrAdminHandler : AuthorizationHandler<ResourceOwnerOrA
         }
 
         // Pour une implémentation complète, vérifier l'ownership via le resource
-        if (context.Resource is string resourceUserId)
+        if (context.Resource is not string resourceUserId)
         {
-            var currentUserId = context.User.Identity?.Name;
-            if (currentUserId == resourceUserId)
-                context.Succeed(requirement);
+            return Task.CompletedTask;
+        }
+
+        string? currentUserId = context.User.Identity?.Name;
+        if (currentUserId == resourceUserId)
+        {
+            context.Succeed(requirement);
         }
 
         return Task.CompletedTask;

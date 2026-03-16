@@ -16,8 +16,7 @@ public partial class Booking : DeleteEntity<int>
     /// </summary>
     public Booking()
     {
-    }
-    
+    }    
 
     /// <summary>
     /// Initialise une nouvelle instance de <see cref="Booking"/> avec les valeurs fournies.
@@ -34,7 +33,7 @@ public partial class Booking : DeleteEntity<int>
         FlightId = flightId;
         PassengerId = passengerId;
         Statut = statut;
-    }
+    }    
 
     /// <summary>
     /// Obtient ou définit la classe de confort réservée.
@@ -44,12 +43,29 @@ public partial class Booking : DeleteEntity<int>
     public Confort FlightType { get; set; } = Confort.Economy;
 
     /// <summary>
+    /// Classe de voyage réservée.
+    /// Exemple : Economy, Business.
+    /// </summary>
+    [Required]
+    [MaxLength(30)]
+    public string FlightClass { get; set; } = "Economy";
+
+
+    /// <summary>
     /// Obtient ou définit l'identifiant du vol associé à la réservation.
     /// </summary>
     [Required(ErrorMessage = "Le vol est requis.")]
     [Column("flight_id")]
     [JsonProperty(PropertyName = "flightId")]
     public int FlightId { get; set; }
+
+     /// <summary>
+    /// Référence unique de réservation.
+    /// Exemple : BK-2026-0001
+    /// </summary>
+    [Required]
+    [MaxLength(30)]
+    public string BookingReference { get; set; } = string.Empty;
 
     /// <summary>
     /// Obtient ou définit l'identifiant du passager associé à la réservation.
@@ -65,5 +81,29 @@ public partial class Booking : DeleteEntity<int>
     [Column("statut")]
     [JsonProperty(PropertyName = "statut")]
     public Statut Statut { get; set; } = Statut.Pending;
+
+      /// <summary>
+    /// Date de création de la réservation.
+    /// </summary>
+    public DateTime BookingDate { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Montant total à payer.
+    /// </summary>
+    public decimal TotalAmount { get; set; }
+
+    /// <summary>
+    /// Devise utilisée.
+    /// Exemple : MGA, EUR, USD.
+    /// </summary>
+    [MaxLength(10)]
+    public string Currency { get; set; } = "MGA";
+
+    /// <summary>
+    /// Statut du paiement lié à la réservation.
+    /// Exemple : Pending, Paid, Failed, Refunded.
+    /// </summary>
+    [MaxLength(30)]
+    public string PaymentStatus { get; set; } = "Pending";
    
 }

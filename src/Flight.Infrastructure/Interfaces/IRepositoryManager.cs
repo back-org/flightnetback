@@ -1,100 +1,135 @@
-﻿using Flight.Domain.Core.Abstracts;
 using Flight.Domain.Entities;
 using Flight.Domain.Interfaces;
-using Flight.Infrastructure.Contracts;
-using Flight.Infrastructure.Database;
 
 namespace Flight.Infrastructure.Interfaces;
 
 /// <summary>
-/// The airline repository.
-/// </summary>
-public class AirlineRepository(FlightContext context) : GenericRepository<Airline>(context);
-
-/// <summary>
-/// The airport repository.
-/// </summary>
-public class AirportRepository(FlightContext context) : GenericRepository<Airport>(context);
-
-/// <summary>
-/// The booking repository.
-/// </summary>
-public class BookingRepository(FlightContext context) : GenericRepository<Booking>(context);
-
-/// <summary>
-/// The city repository.
-/// </summary>
-public class CityRepository(FlightContext context) : GenericRepository<City>(context);
-
-/// <summary>
-/// The country repository.
-/// </summary>
-public class CountryRepository(FlightContext context) : GenericRepository<Country>(context);
-
-/// <summary>
-/// The flight repository.
-/// </summary>
-public class FlightRepository(FlightContext context) : GenericRepository<Domain.Entities.Flight>(context);
-
-/// <summary>
-/// The passenger repository.
-/// </summary>
-public class PassengerRepository(FlightContext context) : GenericRepository<Passenger>(context);
-
-/// <summary>
-/// The vehicle repository.
-/// </summary>
-public class VehicleRepository(FlightContext context) : GenericRepository<Vehicle>(context);
-
-/// <summary>
-/// The repository manager.
+/// Représente le gestionnaire central des repositories.
+/// Cette interface regroupe tous les accès aux dépôts de données de l'application.
+/// 
+/// Le but est d'avoir un seul point d'entrée pour accéder aux repositories,
+/// au lieu d'injecter chaque repository séparément partout dans l'application.
 /// </summary>
 public interface IRepositoryManager
 {
-    IGenericRepository<DeleteEntity<int>> Entity { get; }
+    // ============================================================
+    // Repositories historiques / cœur métier
+    // ============================================================
 
     /// <summary>
-    /// Gets the airline.
+    /// Repository des compagnies aériennes.
     /// </summary>
     IGenericRepository<Airline> Airline { get; }
 
     /// <summary>
-    /// Gets the airport.
+    /// Repository des aéroports.
     /// </summary>
     IGenericRepository<Airport> Airport { get; }
 
     /// <summary>
-    /// Gets the booking.
+    /// Repository des réservations.
     /// </summary>
     IGenericRepository<Booking> Booking { get; }
 
     /// <summary>
-    /// Gets the city.
+    /// Repository des villes.
     /// </summary>
     IGenericRepository<City> City { get; }
 
     /// <summary>
-    /// Gets the country.
+    /// Repository des pays.
     /// </summary>
     IGenericRepository<Country> Country { get; }
 
     /// <summary>
-    /// Gets the flight.
+    /// Repository des vols.
     /// </summary>
     IGenericRepository<Domain.Entities.Flight> Flight { get; }
 
     /// <summary>
-    /// Gets the passenger.
+    /// Repository des passagers.
     /// </summary>
     IGenericRepository<Passenger> Passenger { get; }
 
     /// <summary>
-    /// Gets the vehicle.
+    /// Repository des véhicules.
     /// </summary>
     IGenericRepository<Vehicle> Vehicle { get; }
 
+    // ============================================================
+    // Repositories multiutilisateurs / sécurité
+    // ============================================================
+
     /// <summary>
-    /// Saves the.
+    /// Repository des utilisateurs.
     /// </summary>
-    void Save();
+    IGenericRepository<User> User { get; }
+
+    /// <summary>
+    /// Repository des rôles.
+    /// </summary>
+    IGenericRepository<Role> Role { get; }
+
+    /// <summary>
+    /// Repository des associations utilisateur-rôle.
+    /// </summary>
+    IGenericRepository<UserRole> UserRole { get; }
+
+    /// <summary>
+    /// Repository des refresh tokens.
+    /// </summary>
+    IGenericRepository<RefreshToken> RefreshToken { get; }
+
+    // ============================================================
+    // Repositories équipe / exploitation
+    // ============================================================
+
+    /// <summary>
+    /// Repository des membres d'équipe.
+    /// </summary>
+    IGenericRepository<CrewMember> CrewMember { get; }
+
+    /// <summary>
+    /// Repository des avions.
+    /// </summary>
+    IGenericRepository<Aircraft> Aircraft { get; }
+
+    // ============================================================
+    // Repositories métier complémentaires
+    // ============================================================
+
+    /// <summary>
+    /// Repository des paiements.
+    /// </summary>
+    IGenericRepository<Payment> Payment { get; }
+
+    /// <summary>
+    /// Repository des billets.
+    /// </summary>
+    IGenericRepository<Ticket> Ticket { get; }
+
+    /// <summary>
+    /// Repository des attributions de sièges.
+    /// </summary>
+    IGenericRepository<SeatAssignment> SeatAssignment { get; }
+
+    /// <summary>
+    /// Repository des notifications.
+    /// </summary>
+    IGenericRepository<Notification> Notification { get; }
+
+    /// <summary>
+    /// Repository des tâches internes.
+    /// </summary>
+    IGenericRepository<TaskItem> TaskItem { get; }
+
+    /// <summary>
+    /// Repository des bagages.
+    /// </summary>
+    IGenericRepository<Baggage> Baggage { get; }
+
+    /// <summary>
+    /// Repository des journaux d'audit.
+    /// </summary>
+    IGenericRepository<AuditLog> AuditLog { get; }
 }

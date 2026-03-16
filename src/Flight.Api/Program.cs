@@ -1,30 +1,47 @@
 using Asp.Versioning;
 using DotNetEnv;
 using FluentValidation;
+using MediatR;
 using FluentValidation.AspNetCore;
 using Flight.Application.Applications;
 using Flight.Application.Validators;
 using Flight.Infrastructure.Auth;
+using Flight.Infrastructure.Database;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json.Serialization;
 using Scalar.AspNetCore;
 
-// Charge les variables définies dans le fichier .env
-Env.Load();
+// Charge les variables définies dans le fichier .env.
+// Evite un crash si le fichier n'existe pas
+// dans certains environnements comme la CI/CD ou certains conteneurs.
+try
+{
+    if (File.Exists(".env"))
+    {
+        Env.Load(".env");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Impossible de charger le fichier .env : {ex.Message}");
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Ajoute aussi les variables d'environnement système à la configuration
+// Ajoute les variables d'environnement système à la configuration.
 builder.Configuration.AddEnvironmentVariables();
 
-// -----------------------------
+// ============================================================
 // Enregistrement des services
-// -----------------------------
+// ============================================================
 
-// Base de données
+// Enregistre le DbContext et la connexion à la base de données.
 builder.Services.AddDataContext(builder.Configuration);
 
-// CORS
+// Configure CORS.
+// En développement, cette politique ouverte facilite les tests front/API.
+// En production, il est recommandé de limiter les origines autorisées.
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -33,44 +50,57 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader());
 });
 
-// Contrôleurs + sérialisation JSON
+// Enregistre les contrôleurs MVC avec configuration JSON.
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
     {
+        // Sérialise les propriétés en camelCase avec Newtonsoft.Json.
         options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
     })
     .AddJsonOptions(options =>
     {
+        // Conserve les noms de propriétés tels qu'ils sont définis côté C#.
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 
-// FluentValidation
+// Enregistre FluentValidation pour la validation automatique des DTO.
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<FlightDtoValidator>();
 
-// MediatR
+// Enregistre MediatR pour la gestion du pattern CQRS.
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(FlightDtoValidator).Assembly));
 
-// Routing / API Explorer
+// Explorer API + routing.
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
 
-// API Versioning
+// Enregistre le service de health checks.
+builder.Services.AddHealthChecks();
+
+// Configure le versioning de l'API.
 builder.Services
     .AddApiVersioning(options =>
     {
+        // Version par défaut si aucune version n'est fournie.
         options.DefaultApiVersion = new ApiVersion(1, 0);
+
+        // Si aucune version n'est précisée dans la requête, la version par défaut est utilisée.
         options.AssumeDefaultVersionWhenUnspecified = true;
+
+        // Ajoute les versions supportées dans les headers de réponse.
         options.ReportApiVersions = true;
     })
     .AddApiExplorer(options =>
     {
+        // Format des groupes de documentation OpenAPI.
         options.GroupNameFormat = "'v'V";
+
+        // Remplace le token de version dans les routes.
         options.SubstituteApiVersionInUrl = true;
     });
 
-// OpenAPI
+// Configure OpenAPI.
 builder.Services.AddOpenApi("v1", options =>
 {
     options.AddDocumentTransformer((document, context, cancellationToken) =>
@@ -90,7 +120,7 @@ builder.Services.AddOpenApi("v1", options =>
 
         document.Servers = new List<OpenApiServer>
         {
-            new OpenApiServer
+            new()
             {
                 Url = "http://localhost:8080",
                 Description = "Serveur local de développement"
@@ -101,10 +131,10 @@ builder.Services.AddOpenApi("v1", options =>
     });
 });
 
-// Repositories / services métier
+// Enregistre les repositories et services métier.
 builder.Services.AddRepoService();
 
-// JWT
+// Récupère la configuration JWT depuis appsettings.json et/ou les variables d'environnement.
 var jwtTokenConfig = builder.Configuration
     .GetSection("jwtTokenConfig")
     .Get<JwtTokenConfig>();
@@ -115,20 +145,53 @@ if (jwtTokenConfig is null)
         "La configuration 'jwtTokenConfig' est introuvable dans appsettings.json ou les variables d'environnement.");
 }
 
+// Enregistre l'authentification JWT.
 builder.Services.AddJwtService(jwtTokenConfig);
+
+// ============================================================
+// Construction de l'application
+// ============================================================
 
 var app = builder.Build();
 
-// -----------------------------
+// ============================================================
+// Migration automatique de la base de données au démarrage
+// ============================================================
+
+// Au démarrage, l'application tente d'appliquer automatiquement
+// les migrations EF Core.
+// Cela évite d'avoir à exécuter manuellement les migrations
+// dans certains environnements Docker ou dev.
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("StartupMigration");
+
+    try
+    {
+        var dbContext = services.GetRequiredService<FlightContext>();
+        dbContext.Database.Migrate();
+
+        logger.LogInformation("Les migrations de la base de données ont été appliquées avec succès.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Erreur lors de l'application des migrations de la base de données.");
+        throw;
+    }
+}
+
+// ============================================================
 // Pipeline HTTP
-// -----------------------------
+// ============================================================
 
 if (app.Environment.IsDevelopment())
 {
-    // Expose le document OpenAPI JSON
+    // Expose le document OpenAPI JSON.
     app.MapOpenApi("/openapi/{documentName}.json");
 
-    // Expose l'interface Scalar
+    // Expose l'interface Scalar.
     app.MapScalarApiReference("/scalar", options =>
     {
         options.WithTitle("FlightNet REST API Documentation")
@@ -139,19 +202,30 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
+    // Active HSTS hors environnement de développement.
     app.UseHsts();
 }
 
+// Force la redirection HTTPS.
 app.UseHttpsRedirection();
+
+// Active le service de fichiers statiques si nécessaire.
 app.UseStaticFiles();
 
+// Applique la politique CORS.
 app.UseCors("AllowAll");
 
+// Active l'authentification puis l'autorisation.
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Mappe les contrôleurs API.
 app.MapControllers();
 
+// Endpoint de santé standard.
+app.MapHealthChecks("/health");
+
+// Endpoint racine utile pour vérifier rapidement que l'application répond.
 app.MapGet("/", () => Results.Ok(new
 {
     application = "FlightNet REST API",
@@ -162,16 +236,12 @@ app.MapGet("/", () => Results.Ok(new
 .WithSummary("Point d'entrée de l'application")
 .WithDescription("Retourne les informations de base de l'application et les liens de documentation.");
 
-app.MapGet("/health", () => Results.Ok(new
-{
-    status = "Healthy",
-    application = "FlightNet REST API"
-}))
-.WithSummary("Point de contrôle de santé")
-.WithDescription("Retourne l'état de santé de l'application.");
-
+// Lance l'application.
 await app.RunAsync();
 
+/// <summary>
+/// Classe partielle Program exposée pour les tests d'intégration via WebApplicationFactory.
+/// </summary>
 public partial class Program
 {
 }

@@ -1,38 +1,38 @@
+using Flight.Infrastructure.AuditTrail;
 using Flight.Infrastructure.Contracts;
 using Flight.Infrastructure.Implementations;
 using Flight.Infrastructure.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Flight.Application.Applications;
 
 /// <summary>
-/// Middleware d'extension pour l'enregistrement des services à durée de vie gérée (Scoped, Singleton).
-/// Enregistre le <see cref="IRepositoryManager"/>, le <see cref="IServiceManager"/> et le logger.
+/// Middleware d'extension pour l'enregistrement des services applicatifs
+/// dans le conteneur d'injection de dépendances.
 /// </summary>
 public static class LifetimeMiddleware
 {
     /// <summary>
-    /// Enregistre tous les services applicatifs principaux dans le conteneur DI.
+    /// Enregistre les services principaux de l'application.
     /// </summary>
-    /// <param name="services">Le conteneur de services DI.</param>
-    /// <remarks>
-    /// Services enregistrés :
-    /// <list type="bullet">
-    ///   <item><description><see cref="ILoggerManager"/> (Scoped) — gestionnaire de logs NLog.</description></item>
-    ///   <item><description><see cref="ILogger{T}"/> (Singleton) — logger générique ASP.NET Core.</description></item>
-    ///   <item><description><see cref="IRepositoryManager"/> (Scoped) — accès aux dépôts de données.</description></item>
-    ///   <item><description><see cref="IServiceManager"/> (Scoped) — couche service métier.</description></item>
-    ///   <item><description><see cref="IMemoryCache"/> (Singleton) — cache mémoire in-process.</description></item>
-    /// </list>
-    /// </remarks>
+    /// <param name="services">Le conteneur de services.</param>
     public static void AddRepoService(this IServiceCollection services)
     {
-        services.AddScoped<ILoggerManager, LoggerManager>();
-        services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
+        // Permet d'accéder au HttpContext courant depuis les services.
+        services.AddHttpContextAccessor();
+
+        // Services de logging.
+        services.AddScoped<ILoggerManager, LoggerManager>();        
+
+        // Repositories et services métier.
         services.AddScoped<IRepositoryManager, RepositoryManager>();
         services.AddScoped<IServiceManager, ServiceManager>();
+
+        // Cache mémoire local.
         services.AddSingleton<IMemoryCache, MemoryCache>();
+
+        // Service d'audit.
+        services.AddScoped<IAuditTrailService, AuditTrailService>();
     }
 }
